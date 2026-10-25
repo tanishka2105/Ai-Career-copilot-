@@ -101,3 +101,25 @@ def me(uid: int = Depends(auth.current_user)):
 def history(uid: int = Depends(auth.current_user)):
     return [{"id": r["id"], "title": r["title"], "created_at": r["created_at"],
              "result": json.loads(r["result"])} for r in db.get_history(uid, 20)]
+
+import rag
+@app.post("/api/docs")
+def upload_doc(doc: UploadFile = File(...), uid: int = Depends(auth.current_user)):
+    if not (doc.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(400, "Sirf PDF upload karo")
+    chunks = rag.chunk_text(extract_text(doc.file))
+    if not chunks:
+        raise HTTPException(400, "PDF se text nahi nikla")
+    db.add_chunks(uid, doc.filename, chunks)
+    return {"chunks": len(chunks)}
+
+
+@app.get("/api/docs")
+def list_docs(uid: int = Depends(auth.current_user)):
+    return db.list_docs(uid)
+
+
+@app.delete("/api/docs")
+def clear_docs(uid: int = Depends(auth.current_user)):
+    db.clear_docs(uid)
+    return {"ok": True}
