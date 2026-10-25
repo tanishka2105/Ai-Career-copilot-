@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Career Copilot</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f7f6fb; color: #1d1b2e; margin: 0; padding: 16px; }
+  .box { max-width: 640px; margin: auto; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px #0001; }
+  textarea, input, button { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 12px; border-radius: 10px; border: 1px solid #ccc; font: inherit; }
+  button { background: #6d4aff; color: #fff; border: 0; cursor: pointer; }
+  .score { font-size: 3rem; font-weight: 700; color: #6d4aff; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #13111f; color: #ece9fb; }
+    .box { background: #1c1930; }
+    textarea, input { background: #13111f; color: inherit; border-color: #444; }
+  }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>AI Career Copilot</h1>
+  <input type="file" id="resume" accept=".pdf">
+  <textarea id="jd" rows="6" placeholder="Job description yahan paste karo"></textarea>
+  <button id="go">Analyze</button>
+  <div id="out"></div>
+</div>
+<script>
+  const out = document.getElementById("out");
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const list = (title, items) => `<h3>${title}</h3><ul>${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`;
+
+  document.getElementById("go").onclick = async () => {
+    const file = document.getElementById("resume").files[0];
+    const jd = document.getElementById("jd").value.trim();
+    if (!file || !jd) { out.textContent = "Resume aur job description dono do"; return; }
+    out.textContent = "Analyze ho raha hai...";
+    const fd = new FormData();
+    fd.append("resume", file);
+    fd.append("jd", jd);
+    try {
+      const res = await fetch("/api/analyze", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) { out.textContent = data.detail; return; }
+      out.innerHTML = `<div class="score">${esc(data.score)}/100</div>`
+        + list("Strengths", data.strengths) + list("Gaps", data.gaps) + list("Suggestions", data.suggestions);
+    } catch (e) {
+      out.textContent = "Server se connect nahi hua";
+    }
+  };
+</script>
+</body>
+</html>
