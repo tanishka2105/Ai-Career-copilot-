@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#5b4bff">
 <title>Career Copilot | AI tools for your career</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-192.png">
 <style>
 :root { --bg:#f6f7fb; --card:#fff; --text:#14142b; --muted:#6b6f8d; --acc:#5b4bff; --line:#e6e8f2; --good:#16a34a; --bad:#e11d48;
         --grad:linear-gradient(135deg,#5b4bff,#9b5cff); --shadow:0 10px 30px rgba(40,40,90,.08); }
@@ -319,7 +321,7 @@ $("upDoc").onclick = async () => {
   if (!f) return;
   const fd = new FormData();
   fd.append("doc", f);
-  try { await api("/api/docs", { method: "POST", body: fd }); await loadDocs(); toast("Document upload ho gaya"); }
+  try { await api("/api/docs", { method: "POST", body: fd }); await loadDocs(); }
   catch (e) { alert(e.message); }
 };
 
@@ -377,6 +379,7 @@ function toast(msg) {
   setTimeout(() => t.classList.add("hidden"), 2200);
 }
 
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
 </script>
 </body>
 </html>
