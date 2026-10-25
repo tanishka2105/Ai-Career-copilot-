@@ -32,19 +32,26 @@ if __name__=="__main__":
     import uvicorn
     uvicorn.run("main:app",reload=True)
 
+import os
+from pydantic import BaseModel
+import auth
 class Creds(BaseModel):
     username: str
     password: str
+
 
 @app.post("/api/signup")
 def signup(c: Creds):
     username = c.username.strip()
     if len(username) < 3 or len(c.password) < 8:
         raise HTTPException(400, "Username 3+ aur password 8+ characters ka ho")
+    if ":" in username:
+        raise HTTPException(400, "Username mein : nahi ho sakta")
     salt = os.urandom(16)
     if not db.create_user(username, salt, auth.hash_password(c.password, salt)):
         raise HTTPException(400, "Ye username pehle se hai")
     return {"ok": True}
+
 
 @app.post("/api/login")
 def login(c: Creds):
@@ -52,3 +59,37 @@ def login(c: Creds):
     if not user or not auth.verify(c.password, user["salt"], user["password_hash"]):
         raise HTTPException(401, "Username ya password galat hai")
     return {"token": auth.make_token(user["id"])}
+
+
+@app.get("/api/config")
+def config():
+    return {"google_client_id": auth.GOOGLE_CLIENT_ID}
+
+
+class GoogleLogin(BaseModel):
+    credential: str
+
+
+@app.post("/api/google")
+def google_login(g: GoogleLogin):
+    if not auth.GOOGLE_CLIENT_ID:
+        raise HTTPException(400, "Google login set nahi hai")
+    try:
+        email = auth.verify_google(g.credential)
+    except Exception:
+        raise HTTPException(401, "Google se verify nahi hua")
+    username = "google:" + email                 # alag naam, taaki password wale accounts se na takraye
+    user = db.get_user(username)
+    if not user:
+        salt = os.urandom(16)
+        db.create_user(username, salt, auth.hash_password(os.urandom(16).hex(), salt))
+        user = db.get_user(username)
+    return {"token": auth.make_token(user["id"])}
+
+
+@app.get("/api/me")
+def me(uid: int = Depends(auth.current_user)):
+    user = db.get_user_by_id(uid)
+    if not user:
+        raise HTTPException(401, "Pehle login karo")
+    return {"username": user["username"].replace("google:", "")}

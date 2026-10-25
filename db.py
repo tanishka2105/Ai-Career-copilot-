@@ -49,3 +49,8 @@ def create_user(username, salt, password_hash):
 def get_user(username):
     with db() as c:
         return c.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+
+
+def get_user_by_id(user_id):
+    with db() as c:
+        return c.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
