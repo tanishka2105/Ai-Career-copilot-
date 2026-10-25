@@ -85,6 +85,9 @@ details.item summary { cursor:pointer; list-style:none; }
 .msg { padding:10px 14px; border-radius:16px; margin:8px 0; white-space:pre-wrap; max-width:85%; }
 .me { background:var(--grad); color:#fff; margin-left:auto; border-bottom-right-radius:4px; }
 .bot { background:var(--bg); border:1px solid var(--line); border-bottom-left-radius:4px; }
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; }
+.stat { background:var(--bg); border-radius:14px; padding:12px; text-align:center; } .stat b { display:block; font-size:1.5rem; }
+#toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#1c1d33; color:#fff; padding:10px 18px; border-radius:999px; z-index:60; }
 </style>
 </head>
 <body>
@@ -171,6 +174,7 @@ details.item summary { cursor:pointer; list-style:none; }
 </section>
 </main>
 </div>
+<div id="toast" class="hidden"></div>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -315,7 +319,7 @@ $("upDoc").onclick = async () => {
   if (!f) return;
   const fd = new FormData();
   fd.append("doc", f);
-  try { await api("/api/docs", { method: "POST", body: fd }); await loadDocs(); }
+  try { await api("/api/docs", { method: "POST", body: fd }); await loadDocs(); toast("Document upload ho gaya"); }
   catch (e) { alert(e.message); }
 };
 
@@ -357,6 +361,21 @@ $("coachBtn").onclick = () => {
   $("coachIn").value = "";
   coachSend(t);
 };
+
+window.renderStats = rows => {
+  if (!rows.length) { $("stats").innerHTML = ""; return; }
+  const scores = rows.map(r => Number(r.result.score) || 0);
+  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  $("stats").innerHTML = `<div class="stats"><div class="stat"><b>${rows.length}</b>Analyses</div>
+    <div class="stat"><b>${avg}</b>Average</div><div class="stat"><b>${Math.max(...scores)}</b>Best</div></div>`;
+};
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  setTimeout(() => t.classList.add("hidden"), 2200);
+}
 
 </script>
 </body>
