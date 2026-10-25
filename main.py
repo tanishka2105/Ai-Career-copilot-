@@ -122,4 +122,20 @@ def list_docs(uid: int = Depends(auth.current_user)):
 @app.delete("/api/docs")
 def clear_docs(uid: int = Depends(auth.current_user)):
     db.clear_docs(uid)
-    return {"ok": True}
+    return {"ok": True} 
+
+
+class Question(BaseModel):
+    question: str
+
+
+@app.post("/api/ask")
+def ask(q: Question, uid: int = Depends(auth.current_user)):
+    chunks = rag.top_chunks(q.question, db.get_chunks(uid))
+    if not chunks:
+        return {"answer": "Kuch nahi mila. Pehle document upload kar ya sawal alag tarah se pooch.",
+                "sources": []}
+    try:
+        return {"answer": rag.answer(q.question, chunks), "sources": chunks}
+    except Exception:
+        raise HTTPException(502, "AI se jawab nahi aaya, dobara try karo")
