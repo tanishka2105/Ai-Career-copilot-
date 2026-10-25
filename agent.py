@@ -1,5 +1,7 @@
 import db
 import rag
+import json
+
 from llm import ask_llm
 TOOLS_HELP = (
     "Tools:\n"
