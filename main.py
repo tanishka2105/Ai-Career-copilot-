@@ -138,4 +138,25 @@ def ask(q: Question, uid: int = Depends(auth.current_user)):
     try:
         return {"answer": rag.answer(q.question, chunks), "sources": chunks}
     except Exception:
-        raise HTTPException(502, "AI se jawab nahi aaya, dobara try karo")
+        raise HTTPException(502, "AI se jawab nahi aaya, dobara try karo") 
+
+
+import agent
+class Msg(BaseModel):
+    role: str
+    content: str
+
+
+class Chat(BaseModel):
+    messages: list[Msg]
+
+
+@app.post("/api/coach")
+def coach(chat: Chat, uid: int = Depends(auth.current_user)):
+    msgs = [m.model_dump() for m in chat.messages if m.role in ("user", "assistant")][-20:]
+    if not msgs:
+        raise HTTPException(400, "Koi message nahi")
+    try:
+        return {"reply": agent.coach(msgs, uid)}
+    except Exception:
+        raise HTTPException(502, "Coach se jawab nahi aaya, dobara try karo") 

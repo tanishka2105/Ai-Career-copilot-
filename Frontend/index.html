@@ -136,6 +136,7 @@ details.item summary { cursor:pointer; list-style:none; }
   <button data-tab="analyze" class="on">Analyze</button>
   <button data-tab="history">History</button>
   <button data-tab="docs">Docs</button>
+  <button data-tab="coach">Coach</button>
 </nav>
 <section id="tab-analyze" class="panel tab">
   <h2>Resume Analyzer</h2>
@@ -159,6 +160,14 @@ details.item summary { cursor:pointer; list-style:none; }
   <div id="docChat"></div>
   <input id="ask" class="field" placeholder="Apna sawal likho">
   <button class="btn full" id="askBtn">Poocho</button>
+</section>
+<section id="tab-coach" class="panel tab hidden">
+  <h2>Interview Coach</h2>
+  <p class="muted" style="margin:0">Coach tere resume ki kamiyon ke hisaab se sawal puchega.</p>
+  <button class="btn ghost full" id="coachStart" style="margin:12px 0">Naya interview shuru karo</button>
+  <div id="coachChat"></div>
+  <input id="coachIn" class="field" placeholder="Apna jawab likho">
+  <button class="btn full" id="coachBtn">Bhejo</button>
 </section>
 </main>
 </div>
@@ -327,6 +336,26 @@ $("askBtn").onclick = async () => {
     const d = await api("/api/ask", { method: "POST", headers: JSON_H, body: JSON.stringify({ question: q }) });
     addMsg("docChat", "bot", d.answer);
   } catch (e) { addMsg("docChat", "bot", e.message); }
+};
+
+let coachMsgs = [];
+
+async function coachSend(text) {
+  coachMsgs.push({ role: "user", content: text });
+  try {
+    const d = await api("/api/coach", { method: "POST", headers: JSON_H, body: JSON.stringify({ messages: coachMsgs }) });
+    coachMsgs.push({ role: "assistant", content: d.reply });
+    addMsg("coachChat", "bot", d.reply);
+  } catch (e) { addMsg("coachChat", "bot", e.message); coachMsgs.pop(); }
+}
+
+$("coachStart").onclick = () => { coachMsgs = []; $("coachChat").innerHTML = ""; coachSend("Interview shuru karo"); };
+$("coachBtn").onclick = () => {
+  const t = $("coachIn").value.trim();
+  if (!t) return;
+  addMsg("coachChat", "me", t);
+  $("coachIn").value = "";
+  coachSend(t);
 };
 
 </script>
