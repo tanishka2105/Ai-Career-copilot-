@@ -1,92 +1,101 @@
 import os
-import sqlite3
-from contextlib import contextmanager
 
-DB_PATH = os.getenv("DB_PATH", "app.db")
-@contextmanager
-def db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
+from dotenv import load_dotenv
+from sqlalchemy import (Column, DateTime, Integer, LargeBinary, MetaData, String, Table, Text,
+                        create_engine, delete, func, insert, select)
+from sqlalchemy.exc import IntegrityError
+
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///app.db")      # .env mein Supabase ka link
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+meta = MetaData()
+
+users = Table("users", meta,
+              Column("id", Integer, primary_key=True, autoincrement=True),
+              Column("username", String(150), unique=True, nullable=False),
+              Column("salt", LargeBinary, nullable=False),
+              Column("password_hash", LargeBinary, nullable=False),
+              Column("created_at", DateTime, server_default=func.now()))
+
+history = Table("history", meta,
+                Column("id", Integer, primary_key=True, autoincrement=True),
+                Column("user_id", Integer, nullable=False, index=True),
+                Column("title", Text),
+                Column("result", Text, nullable=False),
+                Column("created_at", DateTime, server_default=func.now()))
+
+chunks = Table("chunks", meta,
+               Column("id", Integer, primary_key=True, autoincrement=True),
+               Column("user_id", Integer, nullable=False, index=True),
+               Column("doc_name", Text),
+               Column("text", Text, nullable=False))
 
 
 def init_db():
-    with db() as c:
-        c.executescript("""
-        CREATE TABLE IF NOT EXISTS users(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            salt BLOB NOT NULL,
-            password_hash BLOB NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS history(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT,
-            score INTEGER,
-            result TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS chunks(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            doc_name TEXT,
-            text TEXT NOT NULL);
-        """)
+    meta.create_all(engine)                  # tables sirf tab banti hain jab pehle se na hon
+
+
+def _user(row):
+    if row is None:
+        return None
+    d = dict(row._mapping)
+    d["salt"], d["password_hash"] = bytes(d["salt"]), bytes(d["password_hash"])
+    return d
+
+
 def create_user(username, salt, password_hash):
     try:
-        with db() as c:
-            c.execute("INSERT INTO users(username, salt, password_hash) VALUES (?,?,?)",
-                      (username, salt, password_hash))
+        with engine.begin() as c:
+            c.execute(insert(users).values(username=username, salt=salt, password_hash=password_hash))
         return True
-    except sqlite3.IntegrityError:          # username pehle se hai
+    except IntegrityError:                   # username pehle se hai
         return False
 
 
 def get_user(username):
-    with db() as c:
-        return c.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    with engine.connect() as c:
+        return _user(c.execute(select(users).where(users.c.username == username)).fetchone())
 
 
 def get_user_by_id(user_id):
-    with db() as c:
-        return c.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
-    
-#  history save 
+    with engine.connect() as c:
+        return _user(c.execute(select(users).where(users.c.id == user_id)).fetchone())
+
+
 def add_history(user_id, title, result_json):
-    with db() as c:
-        c.execute("INSERT INTO history(user_id, title, result) VALUES (?,?,?)",
-                  (user_id, title, result_json))
+    with engine.begin() as c:
+        c.execute(insert(history).values(user_id=user_id, title=title, result=result_json))
 
 
 def get_history(user_id, limit=20):
-    with db() as c:
-        return c.execute("SELECT * FROM history WHERE user_id=? ORDER BY id DESC LIMIT ?",
-                         (user_id, limit)).fetchall()
+    q = select(history).where(history.c.user_id == user_id).order_by(history.c.id.desc()).limit(limit)
+    with engine.connect() as c:
+        rows = [dict(r._mapping) for r in c.execute(q)]
+    for r in rows:
+        r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
+    return rows
 
-#  RAG 1 
-def add_chunks(user_id, doc_name, chunks):
-    with db() as c:
-        c.executemany("INSERT INTO chunks(user_id, doc_name, text) VALUES (?,?,?)",
-                      [(user_id, doc_name, t) for t in chunks])
+
+def add_chunks(user_id, doc_name, texts):
+    with engine.begin() as c:
+        c.execute(insert(chunks), [{"user_id": user_id, "doc_name": doc_name, "text": t} for t in texts])
 
 
 def get_chunks(user_id):
-    with db() as c:
-        rows = c.execute("SELECT text FROM chunks WHERE user_id=?", (user_id,)).fetchall()
-    return [r["text"] for r in rows]
+    with engine.connect() as c:
+        return [r[0] for r in c.execute(select(chunks.c.text).where(chunks.c.user_id == user_id))]
 
 
 def list_docs(user_id):
-    with db() as c:
-        rows = c.execute("SELECT doc_name, COUNT(*) AS chunks FROM chunks "
-                         "WHERE user_id=? GROUP BY doc_name", (user_id,)).fetchall()
-    return [dict(r) for r in rows]
+    q = (select(chunks.c.doc_name, func.count().label("chunks"))
+         .where(chunks.c.user_id == user_id).group_by(chunks.c.doc_name))
+    with engine.connect() as c:
+        return [dict(r._mapping) for r in c.execute(q)]
 
 
 def clear_docs(user_id):
-    with db() as c:
-        c.execute("DELETE FROM chunks WHERE user_id=?", (user_id,))
+    with engine.begin() as c:
+        c.execute(delete(chunks).where(chunks.c.user_id == user_id))
