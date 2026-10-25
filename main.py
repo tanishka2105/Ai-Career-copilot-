@@ -97,3 +97,7 @@ def me(uid: int = Depends(auth.current_user)):
     if not user:
         raise HTTPException(401, "Pehle login karo")
     return {"username": user["username"].replace("google:", "")}
+@app.get("/api/history")
+def history(uid: int = Depends(auth.current_user)):
+    return [{"id": r["id"], "title": r["title"], "created_at": r["created_at"],
+             "result": json.loads(r["result"])} for r in db.get_history(uid, 20)]

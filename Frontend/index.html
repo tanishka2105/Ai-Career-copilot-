@@ -78,6 +78,10 @@ textarea.field { resize:vertical; }
 h4 { margin:16px 0 4px; }
 .spin { width:20px; height:20px; border:3px solid var(--line); border-top-color:var(--acc); border-radius:50%; animation:sp .8s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px; }
 @keyframes sp { to { transform:rotate(360deg); } }
+.hist { display:flex; align-items:center; gap:14px; }
+details.item { border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:10px 0; }
+details.item summary { cursor:pointer; list-style:none; }
+.empty { text-align:center; color:var(--muted); padding:30px 0; }
 </style>
 </head>
 <body>
@@ -127,6 +131,7 @@ h4 { margin:16px 0 4px; }
 <main class="wrap">
 <nav id="nav">
   <button data-tab="analyze" class="on">Analyze</button>
+  <button data-tab="history">History</button>
 </nav>
 <section id="tab-analyze" class="panel tab">
   <h2>Resume Analyzer</h2>
@@ -135,6 +140,11 @@ h4 { margin:16px 0 4px; }
   <textarea id="jd" class="field" rows="6" placeholder="Job description yahan paste karo"></textarea>
   <button class="btn full" id="go">Analyze karo</button>
   <div id="out"></div>
+</section>
+<section id="tab-history" class="panel tab hidden">
+  <h2>History</h2>
+  <div id="stats"></div>
+  <div id="histList"></div>
 </section>
 </main>
 </div>
@@ -249,6 +259,25 @@ $("go").onclick = async () => {
   catch (e) { $("out").textContent = e.message; }
   $("go").disabled = false;
 };
+
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("hidden", t.id !== "tab-" + name));
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  if (name === "history") loadHistory();
+  if (name === "docs") loadDocs();
+}
+document.querySelectorAll("#nav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+async function loadHistory() {
+  try {
+    const rows = await api("/api/history");
+    if (window.renderStats) renderStats(rows);
+    $("histList").innerHTML = rows.map(r =>
+      `<details class="item"><summary class="hist"><div class="ring sm" style="--p:${Number(r.result.score) || 0}"><span>${esc(r.result.score)}</span></div>
+       <div><b>${esc(r.title || "Resume")}</b><br><small class="muted">${esc(r.created_at)}</small></div></summary>${resultHTML(r.result)}</details>`
+    ).join("") || '<div class="empty">Abhi koi history nahi. Pehle ek resume analyze karo.</div>';
+  } catch (e) { $("histList").textContent = e.message; }
+}
 
 </script>
 </body>
