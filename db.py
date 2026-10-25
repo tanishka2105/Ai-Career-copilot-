@@ -54,3 +54,14 @@ def get_user(username):
 def get_user_by_id(user_id):
     with db() as c:
         return c.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+
+def add_history(user_id, title, result_json):
+    with db() as c:
+        c.execute("INSERT INTO history(user_id, title, result) VALUES (?,?,?)",
+                  (user_id, title, result_json))
+
+
+def get_history(user_id, limit=20):
+    with db() as c:
+        return c.execute("SELECT * FROM history WHERE user_id=? ORDER BY id DESC LIMIT ?",
+                         (user_id, limit)).fetchall()

@@ -56,6 +56,28 @@ footer { text-align:center; color:var(--muted); padding:40px 18px; border-top:1p
 .err { color:var(--bad); font-size:.9rem; min-height:1.3em; margin-top:10px; }
 .avatar { width:34px; height:34px; border-radius:50%; background:var(--grad); color:#fff; display:grid; place-items:center; font-weight:700; }
 .user { display:flex; align-items:center; gap:10px; } #who { max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.9rem; }
+nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--card); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); }
+nav button { flex:1; background:none; border:0; color:var(--muted); padding:14px 4px; font:inherit; cursor:pointer; }
+nav button.on { color:var(--acc); font-weight:700; }
+@media (min-width:820px) {
+  nav { position:static; border:0; background:none; gap:8px; margin:22px 0 6px; padding:0; }
+  nav button { flex:none; padding:9px 20px; border-radius:999px; background:var(--card); border:1px solid var(--line); }
+  nav button.on { background:var(--grad); color:#fff; border-color:transparent; }
+}
+.panel { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px; margin:16px 0; box-shadow:var(--shadow); }
+.panel h2 { margin:0 0 4px; } .panel .field { margin:8px 0; }
+.drop { display:flex; flex-direction:column; align-items:center; gap:4px; padding:26px; border:2px dashed var(--line); border-radius:16px; cursor:pointer; text-align:center; margin:12px 0; }
+.drop:hover { border-color:var(--acc); }
+textarea.field { resize:vertical; }
+.res { display:flex; align-items:center; gap:18px; margin:18px 0 6px; }
+.ring { --p:0; width:96px; height:96px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--acc) calc(var(--p) * 1%), var(--line) 0); }
+.ring span { width:76px; height:76px; border-radius:50%; background:var(--card); display:grid; place-items:center; font-weight:800; font-size:1.6rem; }
+.ring.sm { width:52px; height:52px; } .ring.sm span { width:40px; height:40px; font-size:.95rem; }
+.list { padding-left:20px; margin:6px 0 14px; } .list li { margin:4px 0; }
+.list.good li::marker { color:var(--good); } .list.bad li::marker { color:var(--bad); } .list.tip li::marker { color:var(--acc); }
+h4 { margin:16px 0 4px; }
+.spin { width:20px; height:20px; border:3px solid var(--line); border-top-color:var(--acc); border-radius:50%; animation:sp .8s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px; }
+@keyframes sp { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -93,7 +115,7 @@ footer { text-align:center; color:var(--muted); padding:40px 18px; border-top:1p
   <label for="user">Username</label>
   <input id="user" type="text" autocomplete="username" placeholder="tumhara username">
   <label for="pass">Password</label>
-  <div class="pw"><input id="pass" type="password" autocomplete="current-password" placeholder="Password (8+ characters)"><button type="button" id="showpw" class="eye">Show</button></div>
+  <div class="pw"><input id="pass" type="password" autocomplete="current-password" placeholder="Password (6+ characters)"><button type="button" id="showpw" class="eye">Show</button></div>
   <div style="margin-top:18px"><button class="btn full" id="submitAuth">Login</button></div>
   <div id="authMsg" class="err"></div>
 </div></div>
@@ -103,6 +125,17 @@ footer { text-align:center; color:var(--muted); padding:40px 18px; border-top:1p
   <div class="user"><span class="avatar" id="avatar">?</span><span id="who"></span><button class="btn ghost sm" id="logout">Logout</button></div>
 </div></header>
 <main class="wrap">
+<nav id="nav">
+  <button data-tab="analyze" class="on">Analyze</button>
+</nav>
+<section id="tab-analyze" class="panel tab">
+  <h2>Resume Analyzer</h2>
+  <p class="muted" style="margin:0">Resume aur job description do, AI score aur sudhar batayega.</p>
+  <label class="drop"><input type="file" id="resume" accept=".pdf" hidden><b>Resume PDF chuno</b><span id="fname" class="muted">Abhi koi file nahi</span></label>
+  <textarea id="jd" class="field" rows="6" placeholder="Job description yahan paste karo"></textarea>
+  <button class="btn full" id="go">Analyze karo</button>
+  <div id="out"></div>
+</section>
 </main>
 </div>
 <script>
@@ -195,6 +228,27 @@ $("submitAuth").onclick = submitAuth;
 ["user", "pass"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); }));
 $("logout").onclick = logout;
 showApp();
+
+const section = (title, items, cls) =>
+  `<h4>${title}</h4><ul class="list ${cls}">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`;
+const resultHTML = r => `<div class="res"><div class="ring" style="--p:${Number(r.score) || 0}"><span>${esc(r.score)}</span></div>
+  <div><h3 style="margin:0">Match score</h3><span class="muted">Job description ke hisaab se</span></div></div>`
+  + section("Strengths", r.strengths, "good") + section("Gaps", r.gaps, "bad") + section("Suggestions", r.suggestions, "tip");
+
+$("resume").onchange = () => { $("fname").textContent = $("resume").files[0] ? $("resume").files[0].name : "Abhi koi file nahi"; };
+
+$("go").onclick = async () => {
+  const file = $("resume").files[0], jd = $("jd").value.trim();
+  if (!file || !jd) { $("out").textContent = "Resume aur job description dono do"; return; }
+  $("go").disabled = true;
+  $("out").innerHTML = '<p class="muted"><span class="spin"></span>Analyze ho raha hai...</p>';
+  const fd = new FormData();
+  fd.append("resume", file);
+  fd.append("jd", jd);
+  try { $("out").innerHTML = resultHTML(await api("/api/analyze", { method: "POST", body: fd })); }
+  catch (e) { $("out").textContent = e.message; }
+  $("go").disabled = false;
+};
 
 </script>
 </body>
