@@ -1,5 +1,5 @@
 from sklearn.feature_extraction.text import TfidfVectorizer 
-from sklearn.metrics.pairwise import cosine_similiarity 
+from sklearn.metrics.pairwise import cosine_similarity 
 from llm import ask_llm
 def chunk_text(text, size=800, overlap=150):
     chunks, start = [], 0
@@ -27,4 +27,3 @@ def answer(question, context_chunks):
               "toh bolo: Documents mein nahi mila.\n\n"
               f"CONTEXT:\n{context}\n\nSAWAL: {question}")
     return ask_llm(prompt)
-    

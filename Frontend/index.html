@@ -82,6 +82,9 @@ h4 { margin:16px 0 4px; }
 details.item { border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:10px 0; }
 details.item summary { cursor:pointer; list-style:none; }
 .empty { text-align:center; color:var(--muted); padding:30px 0; }
+.msg { padding:10px 14px; border-radius:16px; margin:8px 0; white-space:pre-wrap; max-width:85%; }
+.me { background:var(--grad); color:#fff; margin-left:auto; border-bottom-right-radius:4px; }
+.bot { background:var(--bg); border:1px solid var(--line); border-bottom-left-radius:4px; }
 </style>
 </head>
 <body>
@@ -132,6 +135,7 @@ details.item summary { cursor:pointer; list-style:none; }
 <nav id="nav">
   <button data-tab="analyze" class="on">Analyze</button>
   <button data-tab="history">History</button>
+  <button data-tab="docs">Docs</button>
 </nav>
 <section id="tab-analyze" class="panel tab">
   <h2>Resume Analyzer</h2>
@@ -145,6 +149,16 @@ details.item summary { cursor:pointer; list-style:none; }
   <h2>History</h2>
   <div id="stats"></div>
   <div id="histList"></div>
+</section>
+<section id="tab-docs" class="panel tab hidden">
+  <h2>Documents se poocho</h2>
+  <p class="muted" style="margin:0">Apna PDF upload karo, phir uske baare mein sawal poochho.</p>
+  <label class="drop"><input type="file" id="docFile" accept=".pdf" hidden><b>Document PDF chuno</b><span class="muted" id="docName">Abhi koi file nahi</span></label>
+  <button class="btn ghost full" id="upDoc">Upload karo</button>
+  <p id="docList" class="muted"></p>
+  <div id="docChat"></div>
+  <input id="ask" class="field" placeholder="Apna sawal likho">
+  <button class="btn full" id="askBtn">Poocho</button>
 </section>
 </main>
 </div>
@@ -278,6 +292,42 @@ async function loadHistory() {
     ).join("") || '<div class="empty">Abhi koi history nahi. Pehle ek resume analyze karo.</div>';
   } catch (e) { $("histList").textContent = e.message; }
 }
+
+async function loadDocs() {
+  try {
+    const d = await api("/api/docs");
+    $("docList").textContent = d.length ? "Uploaded: " + d.map(x => `${x.doc_name} (${x.chunks} chunks)`).join(", ") : "Abhi koi document nahi";
+  } catch (e) { $("docList").textContent = e.message; }
+}
+
+$("docFile").onchange = () => { $("docName").textContent = $("docFile").files[0] ? $("docFile").files[0].name : "Abhi koi file nahi"; };
+$("upDoc").onclick = async () => {
+  const f = $("docFile").files[0];
+  if (!f) return;
+  const fd = new FormData();
+  fd.append("doc", f);
+  try { await api("/api/docs", { method: "POST", body: fd }); await loadDocs(); }
+  catch (e) { alert(e.message); }
+};
+
+function addMsg(box, who, text) {
+  const d = document.createElement("div");
+  d.className = "msg " + who;
+  d.textContent = text;                 // textContent = safe, HTML nahi chalta
+  $(box).appendChild(d);
+  d.scrollIntoView({ block: "nearest" });
+}
+
+$("askBtn").onclick = async () => {
+  const q = $("ask").value.trim();
+  if (!q) return;
+  addMsg("docChat", "me", q);
+  $("ask").value = "";
+  try {
+    const d = await api("/api/ask", { method: "POST", headers: JSON_H, body: JSON.stringify({ question: q }) });
+    addMsg("docChat", "bot", d.answer);
+  } catch (e) { addMsg("docChat", "bot", e.message); }
+};
 
 </script>
 </body>
