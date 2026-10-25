@@ -36,3 +36,16 @@ def init_db():
             doc_name TEXT,
             text TEXT NOT NULL);
         """)
+def create_user(username, salt, password_hash):
+    try:
+        with db() as c:
+            c.execute("INSERT INTO users(username, salt, password_hash) VALUES (?,?,?)",
+                      (username, salt, password_hash))
+        return True
+    except sqlite3.IntegrityError:          # username pehle se hai
+        return False
+
+
+def get_user(username):
+    with db() as c:
+        return c.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()

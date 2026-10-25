@@ -3,51 +3,82 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6d4aff">
 <title>AI Career Copilot</title>
 <style>
-  body { font-family: system-ui, sans-serif; background: #f7f6fb; color: #1d1b2e; margin: 0; padding: 16px; }
-  .box { max-width: 640px; margin: auto; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px #0001; }
-  textarea, input, button { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 12px; border-radius: 10px; border: 1px solid #ccc; font: inherit; }
-  button { background: #6d4aff; color: #fff; border: 0; cursor: pointer; }
-  .score { font-size: 3rem; font-weight: 700; color: #6d4aff; }
-  @media (prefers-color-scheme: dark) {
-    body { background: #13111f; color: #ece9fb; }
-    .box { background: #1c1930; }
-    textarea, input { background: #13111f; color: inherit; border-color: #444; }
-  }
+:root { --bg:#f7f6fb; --card:#fff; --text:#1d1b2e; --muted:#6a6783; --acc:#6d4aff; --line:#e3e0f0; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#13111f; --card:#1c1930; --text:#ece9fb; --muted:#9a96b8; --line:#2e2a4a; }
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui,sans-serif; padding-bottom:80px; }
+header { max-width:680px; margin:auto; padding:14px; display:flex; justify-content:space-between; align-items:center; }
+main { max-width:680px; margin:auto; padding:0 14px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin:12px 0; }
+input, textarea, button { width:100%; padding:12px; margin:6px 0; border-radius:10px; border:1px solid var(--line); font:inherit; background:var(--bg); color:var(--text); }
+button { background:var(--acc); color:#fff; border:0; cursor:pointer; }
+button.ghost { background:transparent; color:var(--acc); border:1px solid var(--acc); }
+.hidden { display:none !important; }
 </style>
 </head>
 <body>
-<div class="box">
-  <h1>AI Career Copilot</h1>
-  <input type="file" id="resume" accept=".pdf">
-  <textarea id="jd" rows="6" placeholder="Job description yahan paste karo"></textarea>
-  <button id="go">Analyze</button>
-  <div id="out"></div>
+<header><b>🧠 AI Career Copilot</b><button id="logout" class="ghost hidden" style="width:auto;margin:0">Logout</button></header>
+<main>
+<section id="auth" class="card">
+  <h2>Login ya Signup</h2>
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password (6+ characters)">
+  <button id="login">Login</button>
+  <button id="signup" class="ghost">Sign up</button>
+  <div id="authMsg"></div>
+</section>
+<div id="app" class="hidden">
 </div>
+</main>
 <script>
-  const out = document.getElementById("out");
-  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-  const list = (title, items) => `<h3>${title}</h3><ul>${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const JSON_H = { "Content-Type": "application/json" };
+let token = localStorage.getItem("token");
 
-  document.getElementById("go").onclick = async () => {
-    const file = document.getElementById("resume").files[0];
-    const jd = document.getElementById("jd").value.trim();
-    if (!file || !jd) { out.textContent = "Resume aur job description dono do"; return; }
-    out.textContent = "Analyze ho raha hai...";
-    const fd = new FormData();
-    fd.append("resume", file);
-    fd.append("jd", jd);
-    try {
-      const res = await fetch("/api/analyze", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) { out.textContent = data.detail; return; }
-      out.innerHTML = `<div class="score">${esc(data.score)}/100</div>`
-        + list("Strengths", data.strengths) + list("Gaps", data.gaps) + list("Suggestions", data.suggestions);
-    } catch (e) {
-      out.textContent = "Server se connect nahi hua";
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({}, opts.headers, token ? { Authorization: "Bearer " + token } : {});
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && token) logout();
+  if (!res.ok) throw new Error(data.detail || "Kuch gadbad hui");
+  return data;
+}
+
+function showApp() {
+  const on = !!token;
+  $("auth").classList.toggle("hidden", on);
+  $("app").classList.toggle("hidden", !on);
+  $("logout").classList.toggle("hidden", !on);
+}
+
+async function authenticate(kind) {
+  const body = JSON.stringify({ username: $("user").value, password: $("pass").value });
+  try {
+    if (kind === "signup") {
+      await api("/api/signup", { method: "POST", headers: JSON_H, body });
+      $("authMsg").textContent = "Account ban gaya, ab Login dabao";
+      return;
     }
-  };
+    const d = await api("/api/login", { method: "POST", headers: JSON_H, body });
+    token = d.token;
+    localStorage.setItem("token", token);
+    $("authMsg").textContent = "";
+    showApp();
+  } catch (e) { $("authMsg").textContent = e.message; }
+}
+
+function logout() { token = null; localStorage.removeItem("token"); showApp(); }
+$("login").onclick = () => authenticate("login");
+$("signup").onclick = () => authenticate("signup");
+$("logout").onclick = logout;
+showApp();
+
 </script>
 </body>
 </html>

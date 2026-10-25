@@ -1,6 +1,10 @@
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
-import db
+import db 
+import os
+from pydantic import BaseModel 
+import auth 
+from fastapi import Depends
 
 from analyzer import analyze, extract_text
 
@@ -27,3 +31,24 @@ app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 if __name__=="__main__":
     import uvicorn
     uvicorn.run("main:app",reload=True)
+
+class Creds(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/signup")
+def signup(c: Creds):
+    username = c.username.strip()
+    if len(username) < 3 or len(c.password) < 8:
+        raise HTTPException(400, "Username 3+ aur password 8+ characters ka ho")
+    salt = os.urandom(16)
+    if not db.create_user(username, salt, auth.hash_password(c.password, salt)):
+        raise HTTPException(400, "Ye username pehle se hai")
+    return {"ok": True}
+
+@app.post("/api/login")
+def login(c: Creds):
+    user = db.get_user(c.username.strip())
+    if not user or not auth.verify(c.password, user["salt"], user["password_hash"]):
+        raise HTTPException(401, "Username ya password galat hai")
+    return {"token": auth.make_token(user["id"])}
