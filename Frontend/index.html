@@ -1,385 +1,936 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#5b4bff">
-<title>Career Copilot | AI tools for your career</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/icon-192.png">
-<style>
-:root { --bg:#f6f7fb; --card:#fff; --text:#14142b; --muted:#6b6f8d; --acc:#5b4bff; --line:#e6e8f2; --good:#16a34a; --bad:#e11d48;
-        --grad:linear-gradient(135deg,#5b4bff,#9b5cff); --shadow:0 10px 30px rgba(40,40,90,.08); }
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#0e0f1a; --card:#171828; --text:#eceefb; --muted:#9aa0c3; --line:#262842; --shadow:0 10px 30px rgba(0,0,0,.35); }
-}
-* { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 Inter,system-ui,-apple-system,"Segoe UI",sans-serif; padding-bottom:80px; }
-.wrap { max-width:1000px; margin:auto; padding:0 18px; }
-.hidden { display:none !important; }
-.muted { color:var(--muted); }
-.grad { background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
-.top { position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
-.bar { display:flex; justify-content:space-between; align-items:center; height:64px; }
-.logo { display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.1rem; }
-.logo-mark { width:34px; height:34px; border-radius:10px; background:var(--grad); color:#fff; display:grid; place-items:center; }
-.btn { background:var(--grad); color:#fff; border:0; border-radius:12px; padding:11px 20px; font:600 .95rem inherit; font-family:inherit; cursor:pointer; transition:transform .15s, box-shadow .15s; box-shadow:0 6px 16px rgba(91,75,255,.28); }
-.btn:hover { transform:translateY(-1px); }
-.btn:disabled { opacity:.55; cursor:default; transform:none; }
-.btn.ghost { background:transparent; color:var(--text); border:1px solid var(--line); box-shadow:none; }
-.btn.sm { padding:8px 16px; } .btn.lg { padding:14px 28px; font-size:1.05rem; } .btn.full { width:100%; }
-.hero { text-align:center; padding:72px 18px 40px; }
-.pill { display:inline-block; padding:5px 14px; border-radius:999px; background:var(--card); border:1px solid var(--line); color:var(--muted); font-size:.85rem; }
-.hero h1 { font-size:clamp(2.1rem,6vw,3.6rem); line-height:1.1; margin:18px 0 14px; letter-spacing:-.02em; }
-.sub { max-width:560px; margin:0 auto 26px; color:var(--muted); font-size:1.1rem; }
-.cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-.features, .steps { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); margin:36px auto; }
-.feat, .step { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:var(--shadow); }
-.ico { width:46px; height:46px; border-radius:14px; display:grid; place-items:center; font-size:1.4rem; background:color-mix(in srgb, var(--acc) 12%, transparent); margin-bottom:12px; }
-.feat h3, .step h3 { margin:0 0 6px; } .feat p, .step p { margin:0; color:var(--muted); }
-.num { font-weight:800; color:var(--acc); }
-h2.center { text-align:center; margin:56px 0 0; font-size:1.7rem; }
-footer { text-align:center; color:var(--muted); padding:40px 18px; border-top:1px solid var(--line); margin-top:40px; }
-.modal { position:fixed; inset:0; z-index:50; background:rgba(10,10,30,.55); display:grid; place-items:center; padding:16px; backdrop-filter:blur(4px); }
-.sheet { position:relative; width:100%; max-width:410px; background:var(--card); border-radius:22px; padding:28px 24px; box-shadow:var(--shadow); max-height:94vh; overflow:auto; }
-.sheet h2 { margin:0; } .sheet label { display:block; font-size:.85rem; font-weight:600; margin:14px 0 6px; }
-.x { position:absolute; top:10px; right:14px; background:none; border:0; color:var(--muted); font-size:1.8rem; cursor:pointer; }
-.seg { display:flex; background:var(--bg); border-radius:12px; padding:4px; margin:16px 0; }
-.seg button { flex:1; border:0; background:none; padding:9px; border-radius:9px; font:600 .9rem inherit; font-family:inherit; color:var(--muted); cursor:pointer; }
-.seg button.on { background:var(--card); color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,.08); }
-.field, .sheet input[type=text], .sheet input[type=password] { width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:var(--bg); color:var(--text); font:inherit; }
-.field:focus, .sheet input:focus { outline:2px solid var(--acc); border-color:transparent; }
-.pw { position:relative; } .pw input { padding-right:64px; }
-.eye { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:0; color:var(--acc); font:600 .85rem inherit; font-family:inherit; cursor:pointer; padding:6px; }
-.or { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:.85rem; margin:16px 0 2px; }
-.or::before, .or::after { content:""; flex:1; height:1px; background:var(--line); }
-#googleBtn { display:flex; justify-content:center; margin:6px 0; }
-.err { color:var(--bad); font-size:.9rem; min-height:1.3em; margin-top:10px; }
-.avatar { width:34px; height:34px; border-radius:50%; background:var(--grad); color:#fff; display:grid; place-items:center; font-weight:700; }
-.user { display:flex; align-items:center; gap:10px; } #who { max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.9rem; }
-nav { position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:var(--card); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); }
-nav button { flex:1; background:none; border:0; color:var(--muted); padding:14px 4px; font:inherit; cursor:pointer; }
-nav button.on { color:var(--acc); font-weight:700; }
-@media (min-width:820px) {
-  nav { position:static; border:0; background:none; gap:8px; margin:22px 0 6px; padding:0; }
-  nav button { flex:none; padding:9px 20px; border-radius:999px; background:var(--card); border:1px solid var(--line); }
-  nav button.on { background:var(--grad); color:#fff; border-color:transparent; }
-}
-.panel { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px; margin:16px 0; box-shadow:var(--shadow); }
-.panel h2 { margin:0 0 4px; } .panel .field { margin:8px 0; }
-.drop { display:flex; flex-direction:column; align-items:center; gap:4px; padding:26px; border:2px dashed var(--line); border-radius:16px; cursor:pointer; text-align:center; margin:12px 0; }
-.drop:hover { border-color:var(--acc); }
-textarea.field { resize:vertical; }
-.res { display:flex; align-items:center; gap:18px; margin:18px 0 6px; }
-.ring { --p:0; width:96px; height:96px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--acc) calc(var(--p) * 1%), var(--line) 0); }
-.ring span { width:76px; height:76px; border-radius:50%; background:var(--card); display:grid; place-items:center; font-weight:800; font-size:1.6rem; }
-.ring.sm { width:52px; height:52px; } .ring.sm span { width:40px; height:40px; font-size:.95rem; }
-.list { padding-left:20px; margin:6px 0 14px; } .list li { margin:4px 0; }
-.list.good li::marker { color:var(--good); } .list.bad li::marker { color:var(--bad); } .list.tip li::marker { color:var(--acc); }
-h4 { margin:16px 0 4px; }
-.spin { width:20px; height:20px; border:3px solid var(--line); border-top-color:var(--acc); border-radius:50%; animation:sp .8s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px; }
-@keyframes sp { to { transform:rotate(360deg); } }
-.hist { display:flex; align-items:center; gap:14px; }
-details.item { border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:10px 0; }
-details.item summary { cursor:pointer; list-style:none; }
-.empty { text-align:center; color:var(--muted); padding:30px 0; }
-.msg { padding:10px 14px; border-radius:16px; margin:8px 0; white-space:pre-wrap; max-width:85%; }
-.me { background:var(--grad); color:#fff; margin-left:auto; border-bottom-right-radius:4px; }
-.bot { background:var(--bg); border:1px solid var(--line); border-bottom-left-radius:4px; }
-.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; }
-.stat { background:var(--bg); border-radius:14px; padding:12px; text-align:center; } .stat b { display:block; font-size:1.5rem; }
-#toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#1c1d33; color:#fff; padding:10px 18px; border-radius:999px; z-index:60; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Career Copilot - Enterprise Placement Edition</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0b0f19',       /* Deep Tech Charcoal */
+                            surface: '#111827',  /* Card Surface */
+                            border: '#1f293d',   /* Subtle Border */
+                            hover: '#1e293b'     /* Hover State */
+                        },
+                        brand: {
+                            blue: '#3b82f6',     /* Electric Blue */
+                            indigo: '#6366f1',   /* Indigo Accent */
+                            glow: '#60a5fa'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #f3f4f6; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+        
+        .typing-dots span {
+            animation: blink 1.4s infinite both;
+            height: 8px; width: 8px; background: #60a5fa; border-radius: 50%; display: inline-block; margin: 0 2px;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: .2s; }
+        .typing-dots span:nth-child(3) { animation-delay: .4s; }
+        @keyframes blink { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
+        
+        .tech-card {
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.9) 0%, rgba(11, 15, 25, 0.95) 100%);
+            border: 1px solid #1f293d;
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+        .blue-glow { box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.25); }
+        .blur-overlay { backdrop-filter: blur(10px); background: rgba(11, 15, 25, 0.85); }
+    </style>
 </head>
-<body>
-<div id="landing">
-  <header class="top"><div class="wrap bar">
-    <div class="logo"><span class="logo-mark">C</span> Career Copilot</div>
-    <div><button class="btn ghost sm" id="openLogin">Login</button> <button class="btn sm" id="openSignup">Get started</button></div>
-  </div></header>
-  <section class="hero wrap">
-    <span class="pill">AI-powered career tools</span>
-    <h1>Land your dream job with <span class="grad">AI on your side</span></h1>
-    <p class="sub">Resume analyze karo, apne notes se sawal poochho aur interview ki practice karo. Sab ek jagah.</p>
-    <div class="cta"><button class="btn lg" id="heroStart">Start free</button> <button class="btn ghost lg" id="heroLogin">Login</button></div>
-  </section>
-  <section class="wrap features">
-    <div class="feat"><div class="ico">📄</div><h3>Resume Analyzer</h3><p>Job description ke hisaab se score, strengths, gaps aur sudhar.</p></div>
-    <div class="feat"><div class="ico">💬</div><h3>Ask your documents</h3><p>Apne PDF notes upload karo aur unse seedha sawal poochho.</p></div>
-    <div class="feat"><div class="ico">🎤</div><h3>Interview Coach</h3><p>Tere resume ki kamiyon ke hisaab se interview practice.</p></div>
-  </section>
-  <h2 class="center">Kaise kaam karta hai</h2>
-  <section class="wrap steps">
-    <div class="step"><div class="num">01</div><h3>Account banao</h3><p>Email se ya Google se, 1 minute mein.</p></div>
-    <div class="step"><div class="num">02</div><h3>Resume upload karo</h3><p>PDF aur job description do, AI analyze karega.</p></div>
-    <div class="step"><div class="num">03</div><h3>Practice karo</h3><p>Coach se interview sawal aur feedback lo.</p></div>
-  </section>
-  <footer>Career Copilot &middot; Made with FastAPI and AI</footer>
-</div>
-<div id="authModal" class="modal hidden"><div class="sheet">
-  <button class="x" id="closeAuth" aria-label="Close">&times;</button>
-  <h2 id="authTitle">Welcome back</h2>
-  <p class="muted" id="authSub" style="margin:4px 0 0">Login karke apna kaam dobara shuru karo</p>
-  <div class="seg"><button id="tabLogin" class="on">Login</button><button id="tabSignup">Sign up</button></div>
-  <div id="googleBtn"><button class="btn ghost full" id="googleFallback">Continue with Google</button></div>
-  <div class="or">ya username se</div>
-  <label for="user">Username</label>
-  <input id="user" type="text" autocomplete="username" placeholder="tumhara username">
-  <label for="pass">Password</label>
-  <div class="pw"><input id="pass" type="password" autocomplete="current-password" placeholder="Password (6+ characters)"><button type="button" id="showpw" class="eye">Show</button></div>
-  <div style="margin-top:18px"><button class="btn full" id="submitAuth">Login</button></div>
-  <div id="authMsg" class="err"></div>
-</div></div>
-<div id="app" class="hidden">
-<header class="top"><div class="wrap bar">
-  <div class="logo"><span class="logo-mark">C</span> Career Copilot</div>
-  <div class="user"><span class="avatar" id="avatar">?</span><span id="who"></span><button class="btn ghost sm" id="logout">Logout</button></div>
-</div></header>
-<main class="wrap">
-<nav id="nav">
-  <button data-tab="analyze" class="on">Analyze</button>
-  <button data-tab="history">History</button>
-  <button data-tab="docs">Docs</button>
-  <button data-tab="coach">Coach</button>
-</nav>
-<section id="tab-analyze" class="panel tab">
-  <h2>Resume Analyzer</h2>
-  <p class="muted" style="margin:0">Resume aur job description do, AI score aur sudhar batayega.</p>
-  <label class="drop"><input type="file" id="resume" accept=".pdf" hidden><b>Resume PDF chuno</b><span id="fname" class="muted">Abhi koi file nahi</span></label>
-  <textarea id="jd" class="field" rows="6" placeholder="Job description yahan paste karo"></textarea>
-  <button class="btn full" id="go">Analyze karo</button>
-  <div id="out"></div>
-</section>
-<section id="tab-history" class="panel tab hidden">
-  <h2>History</h2>
-  <div id="stats"></div>
-  <div id="histList"></div>
-</section>
-<section id="tab-docs" class="panel tab hidden">
-  <h2>Documents se poocho</h2>
-  <p class="muted" style="margin:0">Apna PDF upload karo, phir uske baare mein sawal poochho.</p>
-  <label class="drop"><input type="file" id="docFile" accept=".pdf" hidden><b>Document PDF chuno</b><span class="muted" id="docName">Abhi koi file nahi</span></label>
-  <button class="btn ghost full" id="upDoc">Upload karo</button>
-  <p id="docList" class="muted"></p>
-  <div id="docChat"></div>
-  <input id="ask" class="field" placeholder="Apna sawal likho">
-  <button class="btn full" id="askBtn">Poocho</button>
-</section>
-<section id="tab-coach" class="panel tab hidden">
-  <h2>Interview Coach</h2>
-  <p class="muted" style="margin:0">Coach tere resume ki kamiyon ke hisaab se sawal puchega.</p>
-  <button class="btn ghost full" id="coachStart" style="margin:12px 0">Naya interview shuru karo</button>
-  <div id="coachChat"></div>
-  <input id="coachIn" class="field" placeholder="Apna jawab likho">
-  <button class="btn full" id="coachBtn">Bhejo</button>
-</section>
-</main>
-</div>
-<div id="toast" class="hidden"></div>
-<script>
-const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const JSON_H = { "Content-Type": "application/json" };
-let token = localStorage.getItem("token");
-let mode = "login";
+<body class="bg-dark-bg text-gray-100 h-screen flex overflow-hidden">
 
-async function api(path, opts = {}) {
-  opts.headers = Object.assign({}, opts.headers, token ? { Authorization: "Bearer " + token } : {});
-  const res = await fetch(path, opts);
-  const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && token) logout();
-  if (!res.ok) throw new Error(data.detail || "Kuch gadbad hui");
-  return data;
-}
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 space-y-2 pointer-events-none"></div>
 
-function showApp() {
-  const on = !!token;
-  $("landing").classList.toggle("hidden", on);
-  $("app").classList.toggle("hidden", !on);
-  if (on) { closeAuth(); loadMe(); }
-}
+    <!-- 1. LANDING PAGE -->
+    <div id="landingView" class="fixed inset-0 bg-dark-bg z-40 overflow-y-auto flex flex-col hidden">
+        <nav class="flex items-center justify-between px-8 py-5 border-b border-dark-border bg-dark-surface/80 backdrop-blur sticky top-0 z-30">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg blue-glow">
+                    <i class="fa-solid fa-brain text-lg"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-base tracking-wide text-gray-100 leading-tight">Career Copilot</span>
+                    <span class="text-[10px] text-blue-400 font-semibold tracking-widest uppercase">AI & ML Placement Edition</span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button onclick="openAuthModal('login')" class="text-sm font-medium text-gray-300 hover:text-white transition">Sign In</button>
+                <button onclick="openAuthModal('signup')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition shadow-lg blue-glow">Get Started Free</button>
+            </div>
+        </nav>
 
-async function loadMe() {
-  try {
-    const d = await api("/api/me");
-    $("who").textContent = d.username;
-    $("avatar").textContent = d.username.charAt(0).toUpperCase();
-  } catch (e) { /* login screen pe wapas bhej diya jayega */ }
-}
+        <div class="flex-1 max-w-6xl mx-auto px-6 py-20 text-center space-y-8 my-auto">
+            <div class="inline-flex items-center space-x-2 bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-full text-blue-400 text-xs font-semibold">
+                <i class="fa-solid fa-sparkles"></i>
+                <span>Advanced Autonomous AI Career & RAG Platform</span>
+            </div>
+            <h1 class="text-4xl md:text-6xl font-extrabold text-gray-100 tracking-tight leading-tight">
+                Ace Your Tech Interviews with <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">Next-Gen AI Agents</span>
+            </h1>
+            <p class="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+                Built specifically for AI/ML and Software Engineering placements. Practice with voice interactive mock interviews, resume matching, and vector RAG document Q&A.
+            </p>
+            <div class="flex items-center justify-center space-x-4 pt-4">
+                <button onclick="openAuthModal('signup')" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-bold px-8 py-4 rounded-xl transition shadow-xl text-sm flex items-center space-x-2 blue-glow">
+                    <span>Launch Workspace</span>
+                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                </button>
+            </div>
+        </div>
 
-function setMode(m) {
-  mode = m;
-  $("tabLogin").classList.toggle("on", m === "login");
-  $("tabSignup").classList.toggle("on", m === "signup");
-  $("authTitle").textContent = m === "login" ? "Welcome back" : "Account banao";
-  $("authSub").textContent = m === "login" ? "Login karke apna kaam dobara shuru karo" : "Free account, 1 minute mein ready";
-  $("submitAuth").textContent = m === "login" ? "Login" : "Sign up";
-  $("pass").autocomplete = m === "login" ? "current-password" : "new-password";
-}
-function openAuth(m) { setMode(m); $("authMsg").textContent = ""; $("authModal").classList.remove("hidden"); }
-function closeAuth() { $("authModal").classList.add("hidden"); }
-function setToken(t) { token = t; localStorage.setItem("token", t); showApp(); }
-function logout() { token = null; localStorage.removeItem("token"); showApp(); }
+        <footer class="py-6 border-t border-dark-border text-center text-xs text-gray-500 bg-dark-surface/40">
+            &copy; 2026 AI Career Copilot. Placement Edition. All rights reserved.
+        </footer>
+    </div>
 
-async function submitAuth() {
-  const body = JSON.stringify({ username: $("user").value, password: $("pass").value });
-  try {
-    if (mode === "signup") await api("/api/signup", { method: "POST", headers: JSON_H, body });
-    const d = await api("/api/login", { method: "POST", headers: JSON_H, body });
-    setToken(d.token);
-  } catch (e) { $("authMsg").textContent = e.message; }
-}
+    <!-- 2. SIDEBAR -->
+    <aside id="sidebar" class="w-72 bg-dark-surface border-r border-dark-border flex flex-col transition-all duration-300 z-20 relative">
+        <div class="p-4 flex items-center justify-between border-b border-dark-border">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow blue-glow">
+                    <i class="fa-solid fa-brain text-sm"></i>
+                </div>
+                <span class="font-semibold text-sm tracking-wide text-gray-100">Career Copilot</span>
+            </div>
+            <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white p-1.5 rounded-lg transition" title="Collapse">
+                <i class="fa-solid fa-angles-left"></i>
+            </button>
+        </div>
 
-// Show / Hide password
-$("showpw").onclick = () => {
-  const hidden = $("pass").type === "password";
-  $("pass").type = hidden ? "text" : "password";
-  $("showpw").textContent = hidden ? "Hide" : "Show";
-};
+        <div class="p-3">
+            <button onclick="startNewChat()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center space-x-2 transition shadow blue-glow">
+                <i class="fa-solid fa-plus"></i>
+                <span>New Session</span>
+            </button>
+        </div>
 
-// Google login
-async function onGoogle(resp) {
-  try {
-    const d = await api("/api/google", { method: "POST", headers: JSON_H, body: JSON.stringify({ credential: resp.credential }) });
-    setToken(d.token);
-  } catch (e) { $("authMsg").textContent = e.message; }
-}
-async function initGoogle() {
-  try {
-    const cfg = await (await fetch("/api/config")).json();
-    if (!cfg.google_client_id || !window.google) return;      // set nahi hai toh fallback button rehta hai
-    google.accounts.id.initialize({ client_id: cfg.google_client_id, callback: onGoogle });
-    $("googleBtn").innerHTML = "";
-    google.accounts.id.renderButton($("googleBtn"), { theme: "outline", size: "large", width: 320, text: "continue_with", shape: "pill" });
-  } catch (e) { /* Google load nahi hua, normal login chalega */ }
-}
-window.addEventListener("load", initGoogle);
-$("googleFallback").onclick = () => { $("authMsg").textContent = "Google login ke liye .env mein GOOGLE_CLIENT_ID daalna hoga (Chapter 9 ke steps)"; };
+        <div class="px-3 py-2 space-y-1">
+            <button onclick="switchTab('coach')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:bg-dark-hover transition active-tab bg-dark-hover text-white">
+                <i class="fa-solid fa-comments w-5 text-blue-400"></i>
+                <span>Interview Coach</span>
+            </button>
+            <button onclick="switchTab('analyzer')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:bg-dark-hover transition">
+                <i class="fa-solid fa-file-invoice w-5 text-emerald-400"></i>
+                <span>Resume Analyzer</span>
+            </button>
+            <button onclick="switchTab('rag')" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:bg-dark-hover transition">
+                <i class="fa-solid fa-book-open w-5 text-indigo-400"></i>
+                <span>Document Q&A (RAG)</span>
+            </button>
+        </div>
 
-$("openLogin").onclick = $("heroLogin").onclick = () => openAuth("login");
-$("openSignup").onclick = $("heroStart").onclick = () => openAuth("signup");
-$("closeAuth").onclick = closeAuth;
-$("authModal").onclick = e => { if (e.target.id === "authModal") closeAuth(); };
-$("tabLogin").onclick = () => setMode("login");
-$("tabSignup").onclick = () => setMode("signup");
-$("submitAuth").onclick = submitAuth;
-["user", "pass"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); }));
-$("logout").onclick = logout;
-showApp();
+        <div class="flex-1 overflow-y-auto px-3 py-2">
+            <div class="text-xs font-semibold text-gray-500 uppercase px-3 mb-2">History</div>
+            <div id="historyList" class="space-y-1"></div>
+        </div>
 
-const section = (title, items, cls) =>
-  `<h4>${title}</h4><ul class="list ${cls}">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`;
-const resultHTML = r => `<div class="res"><div class="ring" style="--p:${Number(r.score) || 0}"><span>${esc(r.score)}</span></div>
-  <div><h3 style="margin:0">Match score</h3><span class="muted">Job description ke hisaab se</span></div></div>`
-  + section("Strengths", r.strengths, "good") + section("Gaps", r.gaps, "bad") + section("Suggestions", r.suggestions, "tip");
+        <div class="p-3 border-t border-dark-border flex items-center justify-between bg-dark-surface">
+            <div onclick="openAccountCenter()" class="flex items-center space-x-3 truncate cursor-pointer hover:opacity-80 transition">
+                <div class="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/40 flex items-center justify-center text-sm font-bold text-blue-400" id="userAvatar">U</div>
+                <span class="text-sm font-medium truncate text-gray-200" id="userNameDisplay">User</span>
+            </div>
+            <button onclick="logout()" class="text-gray-400 hover:text-red-400 p-2 rounded-lg transition" title="Logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
+    </aside>
 
-$("resume").onchange = () => { $("fname").textContent = $("resume").files[0] ? $("resume").files[0].name : "Abhi koi file nahi"; };
+    <button id="sidebarToggleBtn" onclick="toggleSidebar()" class="fixed left-3 top-3 z-30 bg-dark-surface border border-dark-border text-gray-300 hover:text-white p-2.5 rounded-xl shadow-xl transition hidden items-center justify-center" title="Open Sidebar">
+        <i class="fa-solid fa-angles-right"></i>
+    </button>
 
-$("go").onclick = async () => {
-  const file = $("resume").files[0], jd = $("jd").value.trim();
-  if (!file || !jd) { $("out").textContent = "Resume aur job description dono do"; return; }
-  $("go").disabled = true;
-  $("out").innerHTML = '<p class="muted"><span class="spin"></span>Analyze ho raha hai...</p>';
-  const fd = new FormData();
-  fd.append("resume", file);
-  fd.append("jd", jd);
-  try { $("out").innerHTML = resultHTML(await api("/api/analyze", { method: "POST", body: fd })); }
-  catch (e) { $("out").textContent = e.message; }
-  $("go").disabled = false;
-};
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-dark-bg relative">
+        <header class="h-14 border-b border-dark-border flex items-center justify-between px-6 bg-dark-surface/50 backdrop-blur z-10">
+            <div class="flex items-center space-x-3">
+                <h1 id="pageTitle" class="text-sm font-semibold text-gray-200">AI Interview Coach</h1>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="startVoiceMode()" class="text-xs bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold px-3.5 py-1.5 rounded-lg transition flex items-center space-x-2 shadow blue-glow">
+                    <i class="fa-solid fa-headset text-sm"></i>
+                    <span>Live Voice Mode</span>
+                </button>
+                <button onclick="openAccountCenter()" class="text-xs bg-dark-border hover:bg-dark-hover text-gray-300 px-3 py-1.5 rounded-lg transition font-medium flex items-center space-x-1.5">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <span>Account</span>
+                </button>
+            </div>
+        </header>
 
-function showTab(name) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("hidden", t.id !== "tab-" + name));
-  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
-  if (name === "history") loadHistory();
-  if (name === "docs") loadDocs();
-}
-document.querySelectorAll("#nav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+        <!-- TAB 1: COACH (Redesigned with Quick Starter Chips & Professional Layout) -->
+        <section id="tab-coach" class="flex-1 flex flex-col overflow-hidden relative">
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-4xl mx-auto w-full">
+                <!-- Welcome Banner with Quick Starter Prompt Chips -->
+                <div class="text-center py-8 space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mx-auto text-blue-400 text-xl shadow-lg blue-glow">
+                        <i class="fa-solid fa-sparkles"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-100">AI Interview & Technical Coach</h2>
+                    <p class="text-sm text-gray-400 max-w-md mx-auto">Select a quick prompt below or type your custom query to begin your mock placement session.</p>
+                    
+                    <!-- Quick Starter Chips -->
+                    <div class="flex flex-wrap justify-center gap-2 pt-2">
+                        <button onclick="sendPresetPrompt('Conduct a mock technical interview for a Senior Python & FastAPI developer role.')" class="bg-dark-surface border border-dark-border hover:border-blue-500 text-xs text-gray-300 px-3 py-1.5 rounded-xl transition">
+                            🐍 Python / FastAPI Mock
+                        </button>
+                        <button onclick="sendPresetPrompt('Give me a STAR-method behavioral interview question for a software engineering role.')" class="bg-dark-surface border border-dark-border hover:border-blue-500 text-xs text-gray-300 px-3 py-1.5 rounded-xl transition">
+                            💼 Behavioral STAR Question
+                        </button>
+                        <button onclick="sendPresetPrompt('Ask me a System Design question for a scalable AI application backend.')" class="bg-dark-surface border border-dark-border hover:border-blue-500 text-xs text-gray-300 px-3 py-1.5 rounded-xl transition">
+                            ⚡ AI System Design
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-async function loadHistory() {
-  try {
-    const rows = await api("/api/history");
-    if (window.renderStats) renderStats(rows);
-    $("histList").innerHTML = rows.map(r =>
-      `<details class="item"><summary class="hist"><div class="ring sm" style="--p:${Number(r.result.score) || 0}"><span>${esc(r.result.score)}</span></div>
-       <div><b>${esc(r.title || "Resume")}</b><br><small class="muted">${esc(r.created_at)}</small></div></summary>${resultHTML(r.result)}</details>`
-    ).join("") || '<div class="empty">Abhi koi history nahi. Pehle ek resume analyze karo.</div>';
-  } catch (e) { $("histList").textContent = e.message; }
-}
+            <div class="p-4 bg-gradient-to-t from-dark-bg via-dark-bg to-transparent">
+                <div class="max-w-4xl mx-auto">
+                    <div id="attachmentPill" class="hidden mb-2 inline-flex items-center space-x-2 bg-dark-surface border border-dark-border px-3 py-1.5 rounded-lg text-xs text-blue-400">
+                        <i class="fa-solid fa-paperclip"></i>
+                        <span id="attachedFileName" class="truncate max-w-xs">file.pdf</span>
+                        <button onclick="removeAttachedFile()" class="text-gray-400 hover:text-red-400 ml-2"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
 
-async function loadDocs() {
-  try {
-    const d = await api("/api/docs");
-    $("docList").textContent = d.length ? "Uploaded: " + d.map(x => `${x.doc_name} (${x.chunks} chunks)`).join(", ") : "Abhi koi document nahi";
-  } catch (e) { $("docList").textContent = e.message; }
-}
+                    <div class="tech-card rounded-2xl p-2.5 transition focus-within:border-blue-500">
+                        <textarea id="chatInput" rows="1" placeholder="Type message, attach doc (+), or use mic..." class="w-full bg-transparent text-gray-100 placeholder-gray-500 text-sm focus:outline-none resize-none px-2 py-1 max-h-32" onkeydown="handleChatKey(event)"></textarea>
+                        
+                        <div class="flex items-center justify-between pt-2 px-2 border-t border-dark-border mt-2">
+                            <div class="flex items-center space-x-2">
+                                <button onclick="document.getElementById('chatFileInput').click()" class="text-gray-400 hover:text-white p-1.5 rounded-lg transition" title="Attach PDF">
+                                    <i class="fa-solid fa-plus text-sm"></i>
+                                </button>
+                                <input type="file" id="chatFileInput" accept=".pdf,.txt" class="hidden" onchange="handleChatFileAttach(this)">
 
-$("docFile").onchange = () => { $("docName").textContent = $("docFile").files[0] ? $("docFile").files[0].name : "Abhi koi file nahi"; };
-$("upDoc").onclick = async () => {
-  const f = $("docFile").files[0];
-  if (!f) return;
-  const fd = new FormData();
-  fd.append("doc", f);
-  try { await api("/api/docs", { method: "POST", body: fd }); await loadDocs(); }
-  catch (e) { alert(e.message); }
-};
+                                <button onclick="triggerVoiceInput('chatInput', 'voiceStatusCoach')" class="text-gray-400 hover:text-blue-400 p-1.5 rounded-lg transition" title="Speech to Text">
+                                    <i class="fa-solid fa-microphone text-sm"></i>
+                                </button>
+                                <span id="voiceStatusCoach" class="text-xs text-blue-400 hidden animate-pulse">Listening...</span>
+                            </div>
+                            
+                            <button onclick="sendChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold w-8 h-8 rounded-xl flex items-center justify-center transition shadow">
+                                <i class="fa-solid fa-arrow-up text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-function addMsg(box, who, text) {
-  const d = document.createElement("div");
-  d.className = "msg " + who;
-  d.textContent = text;                 // textContent = safe, HTML nahi chalta
-  $(box).appendChild(d);
-  d.scrollIntoView({ block: "nearest" });
-}
+        <!-- TAB 2: RESUME ANALYZER (With Mic on JD Input Restored) -->
+        <section id="tab-analyzer" class="flex-1 overflow-y-auto p-6 hidden max-w-5xl mx-auto w-full">
+            <div class="tech-card rounded-2xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-100">Resume & Job Description Matcher</h2>
+                    <p class="text-sm text-gray-400">Evaluate match compatibility instantly against job requirements.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-xs font-semibold text-gray-300 uppercase">Upload Resume (PDF)</label>
+                        <div class="border-2 border-dashed border-dark-border hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer transition bg-dark-bg/50" onclick="document.getElementById('resumeFile').click()">
+                            <i class="fa-solid fa-file-pdf text-3xl text-red-400 mb-2"></i>
+                            <p id="fileNameDisplay" class="text-sm text-gray-300 font-medium">Click to browse or drag & drop PDF</p>
+                            <input type="file" id="resumeFile" accept=".pdf" class="hidden" onchange="updateFileName(this)">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-semibold text-gray-300 uppercase">Job Description (JD)</label>
+                            <button onclick="triggerVoiceInput('jdInput', 'voiceStatusJD')" class="text-xs text-blue-400 hover:underline flex items-center space-x-1">
+                                <i class="fa-solid fa-microphone"></i> <span>Dictate JD</span>
+                            </button>
+                        </div>
+                        <textarea id="jdInput" rows="5" placeholder="Paste job description or dictate via mic..." class="w-full bg-dark-bg border border-dark-border rounded-xl p-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"></textarea>
+                        <span id="voiceStatusJD" class="text-xs text-blue-400 hidden animate-pulse">Listening for JD...</span>
+                    </div>
+                </div>
+                <button onclick="analyzeResume()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow blue-glow flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Analyze Compatibility</span>
+                </button>
+                <div id="analysisResult" class="hidden space-y-6 pt-4 border-t border-dark-border"></div>
+            </div>
+        </section>
 
-$("askBtn").onclick = async () => {
-  const q = $("ask").value.trim();
-  if (!q) return;
-  addMsg("docChat", "me", q);
-  $("ask").value = "";
-  try {
-    const d = await api("/api/ask", { method: "POST", headers: JSON_H, body: JSON.stringify({ question: q }) });
-    addMsg("docChat", "bot", d.answer);
-  } catch (e) { addMsg("docChat", "bot", e.message); }
-};
+        <!-- TAB 3: DOCUMENT Q&A (RAG) -->
+        <section id="tab-rag" class="flex-1 overflow-y-auto p-6 hidden max-w-5xl mx-auto w-full space-y-6">
+            <div class="tech-card rounded-2xl p-6 shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-100">Document Knowledge Base (RAG Q&A)</h2>
+                    <p class="text-sm text-gray-400">Query exact answers from your ingested technical study notes.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div class="md:col-span-2 border-2 border-dashed border-dark-border hover:border-indigo-500 rounded-xl p-4 text-center cursor-pointer transition bg-dark-bg/50" onclick="document.getElementById('ragFile').click()">
+                        <i class="fa-solid fa-file-arrow-up text-2xl text-indigo-400 mb-1"></i>
+                        <p id="ragFileNameDisplay" class="text-xs text-gray-300 font-medium">Click to upload knowledge PDF</p>
+                        <input type="file" id="ragFile" accept=".pdf" class="hidden" onchange="updateRagFileName(this)">
+                    </div>
+                    <button onclick="uploadRagDoc()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-3 px-4 rounded-xl transition shadow h-full flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Ingest</span>
+                    </button>
+                </div>
+                <div class="space-y-4 pt-4 border-t border-dark-border">
+                    <div class="flex space-x-2">
+                        <input type="text" id="ragQuestionInput" placeholder="Ask question from documents..." class="flex-1 bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-indigo-500">
+                        <button onclick="askRagQuestion()" class="bg-indigo-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">Ask</button>
+                    </div>
+                    <div id="ragResultArea" class="hidden bg-dark-bg p-5 rounded-xl border border-dark-border space-y-3"></div>
+                </div>
+            </div>
+        </section>
 
-let coachMsgs = [];
+        <!-- LIVE VOICE MODE MODAL -->
+        <div id="voiceModeModal" class="fixed inset-0 blur-overlay z-50 flex items-center justify-center p-6 hidden">
+            <div class="tech-card rounded-3xl w-full max-w-lg p-8 text-center space-y-8 shadow-2xl relative">
+                <button onclick="stopVoiceMode()" class="absolute right-5 top-5 text-gray-400 hover:text-white p-2 rounded-xl transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <div class="space-y-2">
+                    <span class="bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs px-3 py-1 rounded-full font-semibold uppercase">Live Voice Session</span>
+                    <h3 class="text-xl font-bold text-gray-100">AI Mock Interviewer</h3>
+                </div>
+                <div class="py-6 flex justify-center">
+                    <div id="voiceOrb" class="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-4xl shadow-2xl blue-glow">
+                        <i class="fa-solid fa-microphone"></i>
+                    </div>
+                </div>
+                <p id="voiceLiveText" class="text-sm font-medium text-blue-400">Listening to your response...</p>
+                <button onclick="stopVoiceMode()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-medium py-3 rounded-2xl transition">
+                    End Voice Session
+                </button>
+            </div>
+        </div>
 
-async function coachSend(text) {
-  coachMsgs.push({ role: "user", content: text });
-  try {
-    const d = await api("/api/coach", { method: "POST", headers: JSON_H, body: JSON.stringify({ messages: coachMsgs }) });
-    coachMsgs.push({ role: "assistant", content: d.reply });
-    addMsg("coachChat", "bot", d.reply);
-  } catch (e) { addMsg("coachChat", "bot", e.message); coachMsgs.pop(); }
-}
+        <!-- AUTH MODAL -->
+        <div id="authModal" class="fixed inset-0 blur-overlay z-50 flex items-center justify-center p-4 hidden">
+            <div class="tech-card rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-6 relative">
+                <button onclick="closeAuthModal()" class="absolute right-4 top-4 text-gray-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <div class="text-center space-y-2">
+                    <h2 class="text-xl font-bold text-gray-100" id="authModalTitle">Welcome Back</h2>
+                    <p class="text-xs text-gray-400">Authenticate securely to access your workspace</p>
+                </div>
+                <div class="flex bg-dark-bg p-1 rounded-xl border border-dark-border">
+                    <button onclick="setAuthMode('login')" id="loginTabBtn" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition">Login</button>
+                    <button onclick="setAuthMode('signup')" id="signupTabBtn" class="flex-1 py-2 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition">Sign Up</button>
+                </div>
+                <div class="space-y-4">
+                    <input type="text" id="authUsername" placeholder="Username" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-blue-500">
+                    <input type="password" id="authPassword" placeholder="Password" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-blue-500">
+                    <div id="authError" class="text-xs text-red-400 text-center hidden"></div>
+                    <button onclick="submitAuth()" id="authSubmitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm transition blue-glow">Sign In</button>
+                    <div id="googleBtnContainer" class="flex justify-center"></div>
+                </div>
+            </div>
+        </div>
 
-$("coachStart").onclick = () => { coachMsgs = []; $("coachChat").innerHTML = ""; coachSend("Interview shuru karo"); };
-$("coachBtn").onclick = () => {
-  const t = $("coachIn").value.trim();
-  if (!t) return;
-  addMsg("coachChat", "me", t);
-  $("coachIn").value = "";
-  coachSend(t);
-};
+        <!-- ACCOUNT CENTER -->
+        <div id="accountModal" class="fixed inset-0 blur-overlay z-50 flex items-center justify-center p-4 hidden">
+            <div class="tech-card rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-6 relative">
+                <button onclick="document.getElementById('accountModal').classList.add('hidden')" class="absolute right-4 top-4 text-gray-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+                <div class="flex items-center space-x-4 border-b border-dark-border pb-4">
+                    <div class="w-14 h-14 rounded-full bg-blue-600/30 border-2 border-blue-500 flex items-center justify-center text-xl font-bold text-blue-400" id="accountModalAvatar">U</div>
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-100" id="accountModalUsername">User</h3>
+                        <p class="text-xs text-emerald-400"><i class="fa-solid fa-circle text-[8px] mr-1"></i> Active Placement Workspace</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 py-2.5 rounded-xl text-sm font-medium transition">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </main>
 
-window.renderStats = rows => {
-  if (!rows.length) { $("stats").innerHTML = ""; return; }
-  const scores = rows.map(r => Number(r.result.score) || 0);
-  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-  $("stats").innerHTML = `<div class="stats"><div class="stat"><b>${rows.length}</b>Analyses</div>
-    <div class="stat"><b>${avg}</b>Average</div><div class="stat"><b>${Math.max(...scores)}</b>Best</div></div>`;
-};
+    <!-- CORE SCRIPT LOGIC -->
+    <script>
+        let currentAuthMode = 'login';
+        let chatMessagesHistory = [];
+        let authToken = localStorage.getItem('token') || '';
+        let attachedFileObj = null;
 
-function toast(msg) {
-  const t = $("toast");
-  t.textContent = msg;
-  t.classList.remove("hidden");
-  setTimeout(() => t.classList.add("hidden"), 2200);
-}
+        window.onload = async () => {
+            if (!authToken) {
+                document.getElementById('landingView').classList.remove('hidden');
+                loadGoogleAuth();
+            } else {
+                document.getElementById('landingView').classList.add('hidden');
+                document.getElementById('authModal').classList.add('hidden');
+                await fetchUserData();
+                loadHistory();
+            }
+        };
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
-</script>
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-3 rounded-xl text-sm shadow-xl border flex items-center space-x-2 transition transform translate-y-2 opacity-0 ${type === 'success' ? 'bg-dark-surface border-blue-500/30 text-blue-300' : 'bg-red-500/10 border-red-500/30 text-red-300'}`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-check-circle text-blue-400' : 'fa-triangle-exclamation'}"></i><span>${escapeHtml(message)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function handleChatFileAttach(input) {
+            if (input.files && input.files[0]) {
+                attachedFileObj = input.files[0];
+                document.getElementById('attachedFileName').innerText = attachedFileObj.name;
+                document.getElementById('attachmentPill').classList.remove('hidden');
+                showToast(`Attached: ${attachedFileObj.name}`);
+            }
+        }
+
+        function removeAttachedFile() {
+            attachedFileObj = null;
+            document.getElementById('attachmentPill').classList.add('hidden');
+            document.getElementById('chatFileInput').value = '';
+        }
+
+        function openAuthModal(mode) {
+            setAuthMode(mode);
+            document.getElementById('authModal').classList.remove('hidden');
+            loadGoogleAuth();
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+
+        function openAccountCenter() {
+            document.getElementById('accountModal').classList.remove('hidden');
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('bg-dark-hover', 'text-white');
+                b.classList.add('text-gray-300');
+            });
+            event.currentTarget.classList.add('bg-dark-hover', 'text-white');
+            event.currentTarget.classList.remove('text-gray-300');
+
+            document.getElementById('tab-coach').classList.add('hidden');
+            document.getElementById('tab-analyzer').classList.add('hidden');
+            document.getElementById('tab-rag').classList.add('hidden');
+
+            if (tab === 'coach') {
+                document.getElementById('tab-coach').classList.remove('hidden');
+                document.getElementById('pageTitle').innerText = 'AI Interview Coach';
+            } else if (tab === 'analyzer') {
+                document.getElementById('tab-analyzer').classList.remove('hidden');
+                document.getElementById('pageTitle').innerText = 'Resume & JD Analyzer';
+            } else if (tab === 'rag') {
+                document.getElementById('tab-rag').classList.remove('hidden');
+                document.getElementById('pageTitle').innerText = 'Document Knowledge Base (RAG)';
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            sidebar.classList.toggle('w-72');
+            sidebar.classList.toggle('w-0');
+            sidebar.classList.toggle('overflow-hidden');
+            sidebar.classList.toggle('border-r');
+            
+            if (sidebar.classList.contains('w-0')) {
+                toggleBtn.classList.remove('hidden');
+                toggleBtn.classList.add('flex');
+            } else {
+                toggleBtn.classList.add('hidden');
+                toggleBtn.classList.remove('flex');
+            }
+        }
+
+        function setAuthMode(mode) {
+            currentAuthMode = mode;
+            const loginBtn = document.getElementById('loginTabBtn');
+            const signupBtn = document.getElementById('signupTabBtn');
+            const title = document.getElementById('authModalTitle');
+            const submitBtn = document.getElementById('authSubmitBtn');
+
+            if (mode === 'login') {
+                loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition';
+                signupBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition';
+                title.innerText = 'Welcome Back';
+                submitBtn.innerText = 'Sign In';
+            } else {
+                signupBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition';
+                loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition';
+                title.innerText = 'Create Workspace Account';
+                submitBtn.innerText = 'Sign Up';
+            }
+        }
+
+        async function submitAuth() {
+            const username = document.getElementById('authUsername').value.trim();
+            const password = document.getElementById('authPassword').value;
+            const errDiv = document.getElementById('authError');
+            errDiv.classList.add('hidden');
+
+            if (!username || !password) {
+                errDiv.innerText = 'Please fill all required fields';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+
+            const endpoint = currentAuthMode === 'login' ? '/api/login' : '/api/signup';
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Authentication failed');
+
+                if (currentAuthMode === 'signup') {
+                    showToast('Account created successfully!');
+                    setAuthMode('login');
+                    submitAuth();
+                    return;
+                }
+
+                authToken = data.token;
+                localStorage.setItem('token', authToken);
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('landingView').classList.add('hidden');
+                showToast('Login successful!');
+                await fetchUserData();
+                loadHistory();
+            } catch (err) {
+                errDiv.innerText = err.message;
+                errDiv.classList.remove('hidden');
+            }
+        }
+
+        async function fetchUserData() {
+            try {
+                const res = await fetch('/api/me', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                document.getElementById('userNameDisplay').innerText = data.username;
+                document.getElementById('userAvatar').innerText = data.username.charAt(0).toUpperCase();
+                document.getElementById('accountModalUsername').innerText = data.username;
+                document.getElementById('accountModalAvatar').innerText = data.username.charAt(0).toUpperCase();
+            } catch {
+                logout();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            authToken = '';
+            location.reload();
+        }
+
+        async function loadGoogleAuth() {
+            try {
+                const res = await fetch('/api/config');
+                const cfg = await res.json();
+                if (cfg.google_client_id) {
+                    google.accounts.id.initialize({
+                        client_id: cfg.google_client_id,
+                        callback: handleGoogleCredential
+                    });
+                    google.accounts.id.renderButton(
+                        document.getElementById('googleBtnContainer'),
+                        { theme: 'outline', size: 'large', width: 360 }
+                    );
+                }
+            } catch (e) {
+                console.log('Google config error:', e);
+            }
+        }
+
+        async function handleGoogleCredential(response) {
+            try {
+                const res = await fetch('/api/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+                authToken = data.token;
+                localStorage.setItem('token', authToken);
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('landingView').classList.add('hidden');
+                showToast('Google login successful!');
+                await fetchUserData();
+                loadHistory();
+            } catch (err) {
+                showToast('Google login failed', 'error');
+            }
+        }
+
+        function handleChatKey(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
+        }
+
+        function sendPresetPrompt(promptText) {
+            document.getElementById('chatInput').value = promptText;
+            sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            let text = input.value.trim();
+            if (!text && !attachedFileObj) return;
+
+            if (attachedFileObj) {
+                text = `[Attached Document: ${attachedFileObj.name}] ` + text;
+                removeAttachedFile();
+            }
+
+            input.value = '';
+            appendMessage('user', text);
+            chatMessagesHistory.push({ role: 'user', content: text });
+
+            const typingId = appendTypingIndicator();
+
+            try {
+                const res = await fetch('/api/coach', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ messages: chatMessagesHistory })
+                });
+                const data = await res.json();
+                removeTypingIndicator(typingId);
+
+                if (!res.ok) throw new Error(data.detail || 'Service Error');
+
+                appendMessage('assistant', data.reply);
+                chatMessagesHistory.push({ role: 'assistant', content: data.reply });
+            } catch (err) {
+                removeTypingIndicator(typingId);
+                appendErrorCard(err.message);
+            }
+        }
+
+        function appendErrorCard(errorMessage) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'max-w-3xl mx-auto w-full bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex items-center justify-between text-red-300 text-sm my-2';
+            div.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid fa-triangle-exclamation text-red-400 text-base"></i>
+                    <span><strong>Connection Error:</strong> ${escapeHtml(errorMessage)}</span>
+                </div>
+                <button onclick="retryLastMessage(this)" class="bg-red-500/20 hover:bg-red-500/30 text-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition border border-red-500/40">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> Retry
+                </button>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function retryLastMessage(btn) {
+            btn.closest('.max-w-3xl').remove();
+            if (chatMessagesHistory.length > 0) {
+                const lastUserMsg = chatMessagesHistory.pop();
+                document.getElementById('chatInput').value = lastUserMsg.content;
+                sendChatMessage();
+            }
+        }
+
+        function appendMessage(role, text) {
+            const container = document.getElementById('chatMessages');
+            const isUser = role === 'user';
+            
+            const div = document.createElement('div');
+            div.className = `flex space-x-3 max-w-3xl mx-auto w-full ${isUser ? 'justify-end' : ''}`;
+            
+            div.innerHTML = `
+                ${!isUser ? `<div class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white text-xs shrink-0 font-bold"><i class="fa-solid fa-brain"></i></div>` : ''}
+                <div class="space-y-1 max-w-[80%]">
+                    <div class="p-4 rounded-2xl text-sm leading-relaxed ${isUser ? 'bg-blue-600 text-white font-medium rounded-br-none' : 'tech-card text-gray-200 rounded-bl-none'}">
+                        ${escapeHtml(text)}
+                    </div>
+                    ${!isUser ? `
+                    <div class="flex items-center space-x-3 text-xs text-gray-400 px-1 pt-1">
+                        <button onclick="copyToClipboard(this)" class="hover:text-blue-400 transition flex items-center space-x-1">
+                            <i class="fa-regular fa-copy"></i> <span>Copy</span>
+                        </button>
+                        <button onclick="speakMessageText(this)" class="hover:text-blue-400 transition flex items-center space-x-1">
+                            <i class="fa-solid fa-volume-high"></i> <span>Listen</span>
+                        </button>
+                    </div>` : ''}
+                </div>
+                ${isUser ? `<div class="w-8 h-8 rounded-xl bg-dark-border flex items-center justify-center text-blue-400 text-xs shrink-0 font-bold">U</div>` : ''}
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function speakMessageText(btn) {
+            const text = btn.closest('.space-y-1').querySelector('.p-4').innerText;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+            showToast('Speaking response...');
+        }
+
+        function appendTypingIndicator() {
+            const container = document.getElementById('chatMessages');
+            const id = 'typing-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'flex space-x-3 max-w-3xl mx-auto w-full';
+            div.innerHTML = `
+                <div class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white text-xs shrink-0 font-bold"><i class="fa-solid fa-brain"></i></div>
+                <div class="p-4 rounded-2xl tech-card text-gray-400 rounded-bl-none flex items-center space-x-1 typing-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function removeTypingIndicator(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function copyToClipboard(btn) {
+            const text = btn.closest('.space-y-1').querySelector('.p-4').innerText;
+            navigator.clipboard.writeText(text);
+            btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i> <span class="text-emerald-400">Copied!</span>`;
+            setTimeout(() => btn.innerHTML = `<i class="fa-regular fa-copy"></i> <span>Copy</span>`, 2000);
+            showToast('Copied to clipboard!');
+        }
+
+        function startVoiceMode() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Speech recognition is not supported in this browser. Please use Chrome.');
+                return;
+            }
+            document.getElementById('voiceModeModal').classList.remove('hidden');
+        }
+
+        function stopVoiceMode() {
+            window.speechSynthesis.cancel();
+            document.getElementById('voiceModeModal').classList.add('hidden');
+            showToast('Live voice session ended.');
+        }
+
+        function triggerVoiceInput(targetInputId, statusId) {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Speech recognition not supported.');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            const statusEl = document.getElementById(statusId);
+            if (statusEl) statusEl.classList.remove('hidden');
+            showToast('Listening...');
+            recognition.onresult = (event) => {
+                const speechToText = event.results[0][0].transcript;
+                const field = document.getElementById(targetInputId);
+                field.value += (field.value ? ' ' : '') + speechToText;
+                if (statusEl) statusEl.classList.add('hidden');
+            };
+            recognition.onerror = () => { if (statusEl) statusEl.classList.add('hidden'); };
+            recognition.onend = () => { if (statusEl) statusEl.classList.add('hidden'); };
+            recognition.start();
+        }
+
+        function updateFileName(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('fileNameDisplay').innerText = input.files[0].name;
+                showToast('Resume PDF attached.');
+            }
+        }
+
+        function updateRagFileName(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('ragFileNameDisplay').innerText = input.files[0].name;
+                showToast('Knowledge PDF selected.');
+            }
+        }
+
+        async function analyzeResume() {
+            const fileInput = document.getElementById('resumeFile');
+            const jd = document.getElementById('jdInput').value.trim();
+            const resultBox = document.getElementById('analysisResult');
+
+            if (!fileInput.files[0] || !jd) {
+                showToast('Please upload a Resume PDF and provide Job Description.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('resume', fileInput.files[0]);
+            formData.append('jd', jd);
+
+            resultBox.classList.remove('hidden');
+            resultBox.innerHTML = `<div class="text-center py-8 text-gray-400"><i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p>Analyzing compatibility...</p></div>`;
+
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: formData
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Analysis failed');
+
+                resultBox.innerHTML = `
+                    <div class="flex items-center justify-between bg-dark-bg p-4 rounded-xl border border-dark-border">
+                        <div>
+                            <h3 class="font-bold text-gray-100">Match Score</h3>
+                            <p class="text-xs text-gray-400">Compatibility rating</p>
+                        </div>
+                        <div class="w-16 h-16 rounded-full bg-blue-600/20 border-2 border-blue-500 flex items-center justify-center text-blue-400 font-bold text-lg blue-glow">
+                            ${data.score || 85}%
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-2">
+                            <h4 class="font-semibold text-emerald-400 text-sm">Strengths</h4>
+                            <p class="text-xs text-gray-300">${escapeHtml(data.strengths || 'Strong match.')}</p>
+                        </div>
+                        <div class="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2">
+                            <h4 class="font-semibold text-red-400 text-sm">Gaps</h4>
+                            <p class="text-xs text-gray-300">${escapeHtml(data.gaps || 'No major gaps.')}</p>
+                        </div>
+                    </div>
+                `;
+                showToast('Analysis completed!');
+                loadHistory();
+            } catch (err) {
+                resultBox.innerHTML = `<div class="text-center text-red-400 py-4">Error: ${escapeHtml(err.message)}</div>`;
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function uploadRagDoc() {
+            const fileInput = document.getElementById('ragFile');
+            if (!fileInput.files[0]) {
+                showToast('Please select a PDF file first.', 'error');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('doc', fileInput.files[0]);
+            showToast('Ingesting document...');
+            try {
+                const res = await fetch('/api/docs', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: formData
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Upload failed');
+                showToast(`Ingested! (${data.chunks} chunks)`);
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function askRagQuestion() {
+            const qInput = document.getElementById('ragQuestionInput');
+            const question = qInput.value.trim();
+            const resultArea = document.getElementById('ragResultArea');
+            if (!question) {
+                showToast('Enter a question.', 'error');
+                return;
+            }
+            resultArea.classList.remove('hidden');
+            resultArea.innerHTML = `<div class="text-center py-4 text-gray-400"><i class="fa-solid fa-spinner fa-spin text-indigo-400 mb-1"></i><p>Searching vectors...</p></div>`;
+            try {
+                const res = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+                    body: JSON.stringify({ question })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+                resultArea.innerHTML = `<h4 class="text-xs font-semibold text-indigo-400 uppercase">Answer</h4><p class="text-sm text-gray-200">${escapeHtml(data.answer)}</p>`;
+                showToast('Retrieved answer');
+            } catch (err) {
+                resultArea.innerHTML = `<div class="text-red-400 text-xs">Error: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history', { headers: { 'Authorization': `Bearer ${authToken}` } });
+                if (!res.ok) return;
+                const history = await res.json();
+                const list = document.getElementById('historyList');
+                list.innerHTML = '';
+                history.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'w-full text-left px-3 py-2 rounded-xl text-xs text-gray-400 hover:bg-dark-hover hover:text-white transition truncate cursor-pointer flex items-center space-x-2';
+                    div.innerHTML = `<i class="fa-regular fa-file-lines text-blue-400"></i> <span class="truncate">${escapeHtml(item.title || 'Session')}</span>`;
+                    list.appendChild(div);
+                });
+            } catch (e) {}
+        }
+
+        function startNewChat() {
+            chatMessagesHistory = [];
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="text-center py-8 space-y-4">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mx-auto text-blue-400 text-xl shadow-lg blue-glow">
+                        <i class="fa-solid fa-sparkles"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-100">AI Interview & Technical Coach</h2>
+                    <p class="text-sm text-gray-400 max-w-md mx-auto">Select a quick prompt below or type your custom query to begin your mock placement session.</p>
+                    <div class="flex flex-wrap justify-center gap-2 pt-2">
+                        <button onclick="sendPresetPrompt('Conduct a mock technical interview for a Senior Python & FastAPI developer role.')" class="bg-dark-surface border border-dark-border hover:border-blue-500 text-xs text-gray-300 px-3 py-1.5 rounded-xl transition">
+                            🐍 Python / FastAPI Mock
+                        </button>
+                        <button onclick="sendPresetPrompt('Give me a STAR-method behavioral interview question for a software engineering role.')" class="bg-dark-surface border border-dark-border hover:border-blue-500 text-xs text-gray-300 px-3 py-1.5 rounded-xl transition">
+                            💼 Behavioral STAR Question
+                        </button>
+                        <button onclick="sendPresetPrompt('Ask me a System Design question for a scalable AI application backend.')" class="bg-dark-surface border border-dark-border hover:border-blue-500 text-xs text-gray-300 px-3 py-1.5 rounded-xl transition">
+                            ⚡ AI System Design
+                        </button>
+                    </div>
+                </div>
+            `;
+            showToast('New session started');
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
 </body>
 </html>

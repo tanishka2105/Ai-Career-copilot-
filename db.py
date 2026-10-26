@@ -35,8 +35,11 @@ chunks = Table("chunks", meta,
 
 
 def init_db():
+    # print("DATABASE:",engine.url.render_as_string(hide_password=True))
+    # with engine.connect() as c:
+    #     print("Connection test:",c.execute(select(1)).scalar())
     meta.create_all(engine)                  # tables sirf tab banti hain jab pehle se na hon
-
+    # print("Tables:",list(meta.tables.keys()))
 
 def _user(row):
     if row is None:

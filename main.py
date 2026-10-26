@@ -28,13 +28,6 @@ def analyze_resume(resume: UploadFile = File(...), jd: str = Form(...),
     return result
 
 
-# Ye sabse last mein: frontend/ folder ko website ki tarah serve karta hai
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
-
-# instead of uvicorn main:app --reload python main.py use kr skte 
-if __name__=="__main__":
-    import uvicorn
-    uvicorn.run("main:app",reload=True)
 
 import os
 from pydantic import BaseModel
@@ -160,3 +153,11 @@ def coach(chat: Chat, uid: int = Depends(auth.current_user)):
         return {"reply": agent.coach(msgs, uid)}
     except Exception:
         raise HTTPException(502, "Coach se jawab nahi aaya, dobara try karo") 
+
+#  Ye sabse last mein: frontend/ folder ko website ki tarah serve karta hai
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+
+# instead of uvicorn main:app --reload python main.py use kr skte 
+if __name__=="__main__":
+    import uvicorn
+    uvicorn.run("main:app",reload=True)

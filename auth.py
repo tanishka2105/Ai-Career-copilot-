@@ -36,7 +36,14 @@ def current_user(authorization: str = Header(default="")):
 
 
 def verify_google(credential):
-    info = id_token.verify_oauth2_token(credential, g_requests.Request(), GOOGLE_CLIENT_ID)
-    if not info.get("email_verified"):
-        raise ValueError("Google email verify nahi hai")
-    return info["email"]
+    try:
+        # Request with timeout to prevent hanging errors
+        info = id_token.verify_oauth2_token(
+            credential, g_requests.Request(), GOOGLE_CLIENT_ID, clock_skew_in_seconds=10
+        )
+        if not info.get("email_verified"):
+            raise ValueError("Google email verify nahi hai")
+        return info["email"]
+    except Exception as e:
+        print(f"Google Verification Error Details: {e}")
+        raise ValueError("Google token verification failed")
