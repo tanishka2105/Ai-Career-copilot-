@@ -33,13 +33,27 @@ chunks = Table("chunks", meta,
                Column("doc_name", Text),
                Column("text", Text, nullable=False))
 
+sessions = Table("chat_sessions", meta,
+                 Column("id", Integer, primary_key=True, autoincrement=True),
+                 Column("user_id", Integer, nullable=False, index=True),
+                 Column("title", Text),
+                 Column("created_at", DateTime, server_default=func.now()))
+
+messages = Table("messages", meta,
+                 Column("id", Integer, primary_key=True, autoincrement=True),
+                 Column("session_id", Integer, nullable=False, index=True),
+                 Column("role", String(20), nullable=False),
+                 Column("content", Text, nullable=False),
+                 Column("created_at", DateTime, server_default=func.now()))
+
 
 def init_db():
-    # print("DATABASE:",engine.url.render_as_string(hide_password=True))
-    # with engine.connect() as c:
-    #     print("Connection test:",c.execute(select(1)).scalar())
     meta.create_all(engine)                  # tables sirf tab banti hain jab pehle se na hon
-    # print("Tables:",list(meta.tables.keys()))
+    name = engine.url.get_backend_name()
+    print(f"[db] {name} @ {engine.url.host or 'local file'}")
+    if name == "sqlite":
+        print("[db] WARNING: DATABASE_URL nahi mila, local SQLite chal rahi hai. Supabase use nahi ho raha.")
+
 
 def _user(row):
     if row is None:
@@ -78,6 +92,7 @@ def get_history(user_id, limit=20):
     with engine.connect() as c:
         rows = [dict(r._mapping) for r in c.execute(q)]
     for r in rows:
+        r["ts"] = r["created_at"].isoformat() if r["created_at"] else ""
         r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
     return rows
 
@@ -102,3 +117,39 @@ def list_docs(user_id):
 def clear_docs(user_id):
     with engine.begin() as c:
         c.execute(delete(chunks).where(chunks.c.user_id == user_id))
+
+
+# ---- chat sessions (sidebar history) ----
+def create_session(user_id, title):
+    with engine.begin() as c:
+        res = c.execute(insert(sessions).values(user_id=user_id, title=title))
+        return res.inserted_primary_key[0]
+
+
+def session_owned(session_id, user_id):
+    with engine.connect() as c:
+        row = c.execute(select(sessions.c.id).where(sessions.c.id == session_id,
+                                                    sessions.c.user_id == user_id)).fetchone()
+    return row is not None
+
+
+def add_message(session_id, role, content):
+    with engine.begin() as c:
+        c.execute(insert(messages).values(session_id=session_id, role=role, content=content))
+
+
+def get_messages(session_id):
+    with engine.connect() as c:
+        rows = c.execute(select(messages.c.role, messages.c.content)
+                         .where(messages.c.session_id == session_id).order_by(messages.c.id)).fetchall()
+    return [{"role": r[0], "content": r[1]} for r in rows]
+
+
+def list_sessions(user_id, limit=50):
+    q = select(sessions).where(sessions.c.user_id == user_id).order_by(sessions.c.id.desc()).limit(limit)
+    with engine.connect() as c:
+        rows = [dict(r._mapping) for r in c.execute(q)]
+    for r in rows:
+        r["ts"] = r["created_at"].isoformat() if r["created_at"] else ""
+        r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
+    return rows

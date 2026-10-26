@@ -1,8 +1,10 @@
-import db
-import rag
 import json
 
+import db
+import rag
 from llm import ask_llm
+
+
 TOOLS_HELP = (
     "Tools:\n"
     '1. get_last_analysis: user ka sabse naya resume analysis (score, gaps). Input: {}\n'
@@ -13,7 +15,6 @@ INSTRUCTIONS = (
     "Tum ek interview coach ho. Ek baar mein sirf EK sawal pucho. "
     "Shuru mein get_last_analysis tool se user ki kamiyan dekho aur unke hisaab se sawal pucho. "
     "User jawab de toh 2-3 line ka feedback do aur agla sawal pucho.\n\n"
-    "English mein baat karo.\n"
     "Har baar sirf ek JSON do:\n"
     '1) Tool chahiye toh: {"tool": "tool_ka_naam", "args": {}}\n'
     '2) Final jawab ke liye: {"final": "user ko dikhane wala text"}\n\n' + TOOLS_HELP

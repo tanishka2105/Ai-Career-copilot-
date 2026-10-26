@@ -1,8 +1,16 @@
-import os
-from dotenv import load_dotenv
+from sqlalchemy import inspect
 
-load_dotenv()
-k = os.getenv("LLM_API_KEY")
-print("LLM_API_KEY mili:", bool(k), "| length:", len(k) if k else 0, "| shuru:", k[:7] if k else None)
-print("ANTHROPIC_AUTH_TOKEN set:", bool(os.getenv("ANTHROPIC_AUTH_TOKEN")))
-print("ANTHROPIC_API_KEY set:", bool(os.getenv("ANTHROPIC_API_KEY")))
+import db
+
+if not hasattr(db, "engine"):
+    raise SystemExit("db.py purani (sqlite3 wali) hai. Chapter 19 Step 5 ki nayi db.py paste kar.")
+
+url = db.engine.url
+print("Database type:", url.get_backend_name())
+if url.get_backend_name() == "sqlite":
+    print("Ye local SQLite hai. DATABASE_URL .env se padhi nahi gayi.")
+else:
+    print("Host:", url.host, "| port:", url.port, "| database:", url.database)
+
+db.init_db()
+print("Tables:", inspect(db.engine).get_table_names())
