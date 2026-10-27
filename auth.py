@@ -32,12 +32,12 @@ def current_user(authorization: str = Header(default="")):
     try:
         return int(jwt.decode(token, SECRET, algorithms=["HS256"])["sub"])
     except Exception:
-        raise HTTPException(401, "Pehle login karo")
+        raise HTTPException(401, "Please sign in")
 
 
 def verify_google(credential):
     info = id_token.verify_oauth2_token(credential, g_requests.Request(), GOOGLE_CLIENT_ID,
                                         clock_skew_in_seconds=10)
     if not info.get("email_verified"):
-        raise ValueError("Google email verify nahi hai")
+        raise ValueError("Google email is not verified")
     return info["email"]
