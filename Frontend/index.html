@@ -1,16 +1,19 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Career Copilot</title>
+<title>Ascendra</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%231F4E8C'/%3E%3Cpath d='M9 22V10h7a4 4 0 010 8h-4' fill='none' stroke='%23F7F6F3' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#111315">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <style>
-:root{--bg:#F7F6F3;--panel:#EFEDE8;--line:#DDD9D0;--ink:#1E2430;--mute:#5F6673;--acc:#1F4E8C;--on:#F7F6F3;--r:5px;--fs:15px}
-[data-theme=dark]{--bg:#14181E;--panel:#1B2129;--line:#2B343F;--ink:#E8E6E1;--mute:#98A0AC;--acc:#6FA3E0;--on:#101419}
+:root{--bg:#E9EFEC;--panel:#DCE5E1;--line:#C3CEC9;--ink:#111315;--mute:#56625D;--acc:#0E7A57;--on:#F4F8F6;--err:#B3402E;--r:5px;--fs:15px}
+[data-theme=dark]{--bg:#111315;--panel:#1B2020;--line:#2B3331;--ink:#DCE5E1;--mute:#899792;--acc:#57E6B1;--on:#111315;--err:#F08A75}
+[hidden]{display:none!important}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%}
 body{font:var(--fs)/1.55 'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
@@ -51,13 +54,13 @@ table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;font
 .hl{background:var(--panel);border-right:1px solid var(--line);padding:12px;gap:8px;overflow:auto}
 .hl a{display:flex;justify-content:space-between;gap:6px;padding:7px 8px;border-radius:var(--r);cursor:pointer;font-size:14px;border:1px solid transparent}
 .hl a span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.hl a:hover{background:var(--bg)}.hl a.on{background:var(--bg);border-color:var(--line)}
-.hl a i{opacity:.5;font-size:15px}.hl a i:hover{opacity:1;color:#B3402E}
+.hl a i{opacity:.5;font-size:15px}.hl a i:hover{opacity:1;color:var(--err)}
 .cfg{border-left:1px solid var(--line);padding:14px;gap:12px;overflow:auto}
 .chat{padding:14px 16px}
 .msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;min-height:0;padding-bottom:10px}
 .m{max-width:75ch;padding:9px 13px;border-radius:var(--r);border:1px solid var(--line);white-space:pre-wrap}
 .m.u{align-self:flex-end;background:var(--acc);color:var(--on);border-color:var(--acc)}.m.a{align-self:flex-start;background:var(--panel)}
-.m.n{align-self:center;border:0;color:var(--mute);font-size:13px;padding:2px}.m.e{align-self:flex-start;border-color:#B3402E;color:#B3402E}
+.m.n{align-self:center;border:0;color:var(--mute);font-size:13px;padding:2px}.m.e{align-self:flex-start;border-color:var(--err);color:var(--err)}
 .composer{display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--line);padding-top:10px}
 .composer textarea{min-height:42px;height:42px;max-height:130px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.chip{border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:4px 9px;font-size:13px;cursor:pointer}.chip:hover,.chip.on{border-color:var(--acc);color:var(--acc)}
@@ -74,21 +77,59 @@ footer{border-top:1px solid var(--line);padding:8px 20px;font-size:13px;color:va
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 #auth{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:20}
 #auth input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:8px 10px}
+#land{position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:15;display:none}
+.lw{max-width:1100px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+.ltop{display:flex;align-items:center;gap:24px;height:64px;border-bottom:1px solid var(--line)}
+.lnav{display:flex;gap:22px;flex:1;color:var(--mute)}.lnav a{cursor:pointer}.lnav a:hover{color:var(--acc)}
+.hero2{display:grid;grid-template-columns:1.15fr 1fr;gap:48px;align-items:center;padding:72px 0}
+.hero2 h1{font-size:clamp(32px,5vw,50px)}.tag{color:var(--acc);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px}
+.row3{display:grid;grid-template-columns:1fr 2fr;gap:40px;padding:52px 0;border-top:1px solid var(--line)}
+.li{display:grid;grid-template-columns:40px 1fr;gap:12px;padding:15px 0;border-bottom:1px solid var(--line)}.li:first-child{padding-top:0}
+.li b{display:block;font-weight:500}.li span.n{color:var(--acc);font-family:Fraunces,serif}
+#llegal{padding:28px 0 40px}
+@media(max-width:820px){.hero2,.row3{grid-template-columns:1fr;gap:24px;padding:36px 0}.lnav{display:none}.ltop{justify-content:space-between}}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-<div id="auth"><div class="box" style="width:min(400px,92vw)">
-<div class="brand" style="margin-bottom:14px"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="5" fill="#1F4E8C"/><path d="M9 22V10h7a4 4 0 010 8h-4" fill="none" stroke="#F7F6F3" stroke-width="3"/></svg>Career Copilot</div>
+<div id="auth"><div class="box" style="width:min(400px,92vw);position:relative;background:var(--bg)"><button id="a-x" class="btn ghost sq" style="position:absolute;top:10px;right:10px" aria-label="Close"><i class="ph ph-x"></i></button>
+<div class="brand" style="margin-bottom:14px"><img src="logo-mark.png" alt="" width="28" height="28" style="border-radius:7px">Ascendra</div>
 <h2 id="a-h">Sign in</h2><p class="sub" style="margin:4px 0 14px">Your chats, documents and analyses are saved to your account.</p>
 <div id="gbtn" style="min-height:44px"></div><p class="sm mute" style="margin:10px 0">Or use a username</p>
 <label class="lbl" for="a-user">Username</label><input type="text" id="a-user" autocomplete="username">
 <label class="lbl" for="a-pass" style="margin-top:10px">Password</label><input type="password" id="a-pass" autocomplete="current-password">
-<p class="sm" id="a-err" style="color:#B3402E;min-height:22px;margin:6px 0"></p>
+<p class="sm" id="a-err" style="color:var(--err);min-height:22px;margin:6px 0"></p>
 <button class="btn" id="a-go" style="width:100%;justify-content:center">Sign in</button>
 <p class="sm mute" style="margin-top:12px"><a id="a-sw" style="cursor:pointer;color:var(--acc)">Create an account</a></p></div></div>
+<div id="land"><div class="lw">
+<div class="ltop"><div class="brand"><img src="logo-mark.png" alt="" width="28" height="28" style="border-radius:7px">Ascendra</div>
+<div class="lnav"><a data-sc="lf">Features</a><a data-sc="lh">How it works</a><a data-l="privacy">Privacy</a><a data-l="terms">Terms</a></div>
+<div style="display:flex;gap:8px"><button class="btn ghost" data-auth="in">Sign in</button><button class="btn" data-auth="up">Create account</button></div></div>
+<div id="lmain">
+<div class="hero2"><div><div class="tag">AI career platform</div><h1>Intelligence That Moves You Forward</h1>
+<p class="sub" style="margin:16px 0 24px;font-size:17px">An AI-powered career platform for smarter resumes, personalized insights, and interview readiness, built to help you take your next step with confidence.</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-auth="up">Create a free account</button><button class="btn ghost" data-auth="in">Sign in</button></div></div>
+<div class="shot" style="min-height:300px"><div><i class="ph ph-image"></i><br>Add a real screenshot or demo video of Ascendra here.<br><span class="sm">Replace this block with an img tag.</span></div></div></div>
+<div class="row3" id="lf"><div><h2>What you can do</h2><p class="sub" style="margin-top:8px">Six tools that share one profile, so each one gets better the more you use it.</p></div>
+<div><div class="li"><span class="n">1</span><div><b>Resume match</b><span class="mute">Compare your resume with a job description. Get a match score, skill gaps and the questions that job is likely to ask.</span></div></div>
+<div class="li"><span class="n">2</span><div><b>Interview coach</b><span class="mute">Practice one question at a time by text or voice. Choose the round, the level and what the interview is based on.</span></div></div>
+<div class="li"><span class="n">3</span><div><b>Question bank</b><span class="mute">Ready questions with model answers for behavioral, technical, HR and situational rounds.</span></div></div>
+<div class="li"><span class="n">4</span><div><b>Prep planner</b><span class="mute">A day-by-day checklist built from your interview date.</span></div></div>
+<div class="li"><span class="n">5</span><div><b>Knowledge base</b><span class="mute">Upload PDFs and ask questions that are answered from your own documents.</span></div></div>
+<div class="li"><span class="n">6</span><div><b>Saved history</b><span class="mute">Every chat and analysis is stored in your account and available on any device.</span></div></div></div></div>
+<div class="row3" id="lh"><div><h2>How it works</h2></div>
+<div><div class="li"><span class="n">1</span><div><b>Create your account and profile</b><span class="mute">Sign in with Google or a username. Add your target role and interview date.</span></div></div>
+<div class="li"><span class="n">2</span><div><b>Match your resume to the job</b><span class="mute">Paste, upload or dictate the job description and see where you stand.</span></div></div>
+<div class="li"><span class="n">3</span><div><b>Practice until it feels natural</b><span class="mute">Run mock rounds, change the level at any time and read the feedback on each answer.</span></div></div>
+<div class="li"><span class="n">4</span><div><b>Follow the plan to interview day</b><span class="mute">Tick off tasks and watch your readiness score rise.</span></div></div></div></div>
+<div class="row3"><div><h2>Try a sample</h2><p class="sub" style="margin-top:8px">Two questions from the question bank. Sign in to practice them with the coach.</p></div><div id="lsample"></div></div>
+<div class="row3"><div><h2>Your resume is personal data</h2></div><div><p>We use your documents only to answer your requests. You can delete chats, documents and analyses from Settings at any time. Read the <a data-l="privacy" style="cursor:pointer;color:var(--acc)">Privacy Policy</a> and <a data-l="terms" style="cursor:pointer;color:var(--acc)">Terms of Use</a>.</p><button class="btn" data-auth="up" style="margin-top:16px">Create a free account</button></div></div>
+</div>
+<div id="llegal" hidden></div>
+<div style="border-top:1px solid var(--line);padding:16px 0 28px;font-size:13px;color:var(--mute);display:flex;gap:18px;flex-wrap:wrap"><span>Ascendra. Intelligence That Moves You Forward.</span><a data-l="privacy" style="cursor:pointer">Privacy Policy</a><a data-l="terms" style="cursor:pointer">Terms of Use</a></div>
+</div></div>
 <header>
-  <div class="brand"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="5" fill="#1F4E8C"/><path d="M9 22V10h7a4 4 0 010 8h-4" fill="none" stroke="#F7F6F3" stroke-width="3"/></svg>Career Copilot</div>
+  <div class="brand"><img src="logo-mark.png" alt="" width="28" height="28" style="border-radius:7px">Ascendra</div>
   <nav>
     <a data-v="home"><i class="ph ph-gauge"></i>Overview</a>
     <a data-v="coach"><i class="ph ph-microphone-stage"></i>Interview coach</a>
@@ -186,7 +227,7 @@ footer{border-top:1px solid var(--line);padding:8px 20px;font-size:13px;color:va
     <div><label class="lbl">Read coach replies aloud</label><select data-cf="read"><option value="off">Off</option><option value="on">On</option></select></div>
     <div class="full sec"><h2>Data and privacy</h2><p class="mute sm">Chats, documents and analyses are saved to your account. Profile and preferences stay on this device.</p></div>
     <div class="full" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn ghost" id="exp"><i class="ph ph-download-simple"></i>Export my data</button><button class="btn ghost" id="clrc"><i class="ph ph-chats"></i>Delete all chats</button><button class="btn ghost" id="clra"><i class="ph ph-trash"></i>Delete my data and sign out</button></div>
-    <div class="full sec"><h2>About</h2><p class="mute sm">Career Copilot, version 2.0. <a data-v="privacy" style="cursor:pointer;color:var(--acc)">Privacy Policy</a> and <a data-v="terms" style="cursor:pointer;color:var(--acc)">Terms of Use</a>.</p></div>
+    <div class="full sec"><h2>About</h2><p class="mute sm">Ascendra, version 2.0. <a data-v="privacy" style="cursor:pointer;color:var(--acc)">Privacy Policy</a> and <a data-v="terms" style="cursor:pointer;color:var(--acc)">Terms of Use</a>.</p></div>
   </div>
 </section>
 
@@ -196,18 +237,18 @@ footer{border-top:1px solid var(--line);padding:8px 20px;font-size:13px;color:va
 <h2>Storage and deletion</h2><p>Delete chats or all device data in Settings, or write to [contact email] and we will remove your server data.</p>
 <h2>Sharing</h2><p>We do not sell your data. It goes only to the hosting and AI providers needed to run the service: [list providers].</p><h2>Contact</h2><p>[Name and contact email]</p></section>
 <section class="view legal" id="v-terms"><h1>Terms of Use</h1><p class="sub">Last updated 27 October 2026. Have these reviewed before launch.</p>
-<h2>Use of the service</h2><p>Career Copilot provides interview practice and resume feedback. Do not upload documents you have no right to share, or anyone else's personal data without permission.</p>
+<h2>Use of the service</h2><p>Ascendra provides interview practice and resume feedback. Do not upload documents you have no right to share, or anyone else's personal data without permission.</p>
 <h2>No guarantees</h2><p>Feedback is AI generated and can be wrong. It does not promise an interview or a job offer.</p>
 <h2>Your content</h2><p>You keep ownership of what you upload and allow us to process it to run the service.</p><h2>Changes</h2><p>We may update these terms and will change the date above when we do.</p></section>
 </div>
-<footer><span>Career Copilot</span><a data-v="privacy">Privacy Policy</a><a data-v="terms">Terms of Use</a></footer>
+<footer><span>Ascendra. Intelligence That Moves You Forward.</span><a data-v="privacy">Privacy Policy</a><a data-v="terms">Terms of Use</a></footer>
 <div id="toasts" aria-live="polite"></div>
 
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const S={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let st=Object.assign({chats:[],cur:{},bm:[],plan:{},an:[],docs:[],resume:'',match:null,skills:[],analyzed:false,answers:0,log:[]},S.get('st',{}));
-let P=S.get('prof',{}),CF=Object.assign({theme:'system',size:'15',round:'Mixed',level:'Standard',voice:'female',rate:'1',read:'off',lang:'en-US'},S.get('cfg',{}));
+let P=S.get('prof',{}),CF=Object.assign({theme:'dark',size:'15',round:'Mixed',level:'Standard',voice:'female',rate:'1',read:'off',lang:'en-US'},S.get('cfg',{}));
 const base='';let tok=S.get('tok','');
 const save=r=>{S.set('st',st);if(r!==false)render()};
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -227,17 +268,28 @@ async function api(path,o={}){
 const jpost=(p,b,o={})=>api(p,Object.assign({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)},o));
 async function readFile(f){if(/\.txt$/i.test(f.name))return f.text();const fd=new FormData();fd.append('file',f);return (await api('/api/extract',{method:'POST',body:fd})).text}
 const showAuth=on=>{$('#auth').style.display=on?'flex':'none'};
-function logout(silent){tok='';S.set('tok','');showAuth(true);if(!silent)toast('Signed out')}
+function logout(silent){tok='';S.set('tok','');showAuth(false);showLand(true);if(!silent)toast('Signed out')}
 let amode='in';
-$('#a-sw').onclick=()=>{amode=amode==='in'?'up':'in';$('#a-h').textContent=amode==='in'?'Sign in':'Create account';$('#a-go').textContent=amode==='in'?'Sign in':'Create account';$('#a-sw').textContent=amode==='in'?'Create an account':'I already have an account';$('#a-err').textContent=''};
+function setMode(m){amode=m;$('#a-h').textContent=m==='in'?'Sign in':'Create account';$('#a-go').textContent=m==='in'?'Sign in':'Create account';$('#a-sw').textContent=m==='in'?'Create an account':'I already have an account';$('#a-err').textContent=''}
+function openAuth(m){setMode(m);showAuth(true);renderG();setTimeout(()=>$('#a-user').focus(),50)}
+const showLand=on=>{$('#land').style.display=on?'block':'none';if(on){$('#lmain').hidden=false;$('#llegal').hidden=true}};
+$('#a-sw').onclick=()=>setMode(amode==='in'?'up':'in');
+$('#a-x').onclick=()=>showAuth(false);
+function renderG(){if(window._g&&window.google)google.accounts.id.renderButton($('#gbtn'),{theme:'outline',size:'large',text:'continue_with',width:300})}
+function renderSample(){$('#lsample').innerHTML=[BANK[0],BANK[4]].map(b=>`<details style="border-top:0;border-bottom:1px solid var(--line)"><summary>${esc(b[1])}</summary><p style="margin-top:8px" class="mute">${esc(b[2])}</p></details>`).join('')}
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-auth]');if(a){openAuth(a.dataset.auth);return}
+  const l=e.target.closest('[data-l]');if(l&&$('#land').style.display==='block'){$('#llegal').innerHTML='<button class="btn ghost" id="lback" style="margin-bottom:18px"><i class="ph ph-arrow-left"></i>Back</button><div class="legal">'+$('#v-'+l.dataset.l).innerHTML+'</div>';$('#lmain').hidden=true;$('#llegal').hidden=false;$('#land').scrollTop=0;return}
+  if(e.target.closest('#lback')){$('#lmain').hidden=false;$('#llegal').hidden=true;return}
+  const sc=e.target.closest('[data-sc]');if(sc){$('#'+sc.dataset.sc).scrollIntoView({behavior:'smooth'})}});
 $('#a-go').onclick=async()=>{const u=$('#a-user').value.trim(),p=$('#a-pass').value;$('#a-err').textContent='';
   try{if(amode==='up')await jpost('/api/signup',{username:u,password:p},{noauth:true});
     const r=await jpost('/api/login',{username:u,password:p},{noauth:true});await enter(r.token)}catch(e){$('#a-err').textContent=e.message}};
 $('#a-pass').addEventListener('keydown',e=>{if(e.key==='Enter')$('#a-go').click()});
-async function enter(t){tok=t;S.set('tok',t);showAuth(false);$('#a-pass').value='';await boot2()}
+async function enter(t){tok=t;S.set('tok',t);showAuth(false);showLand(false);$('#a-pass').value='';await boot2()}
 async function initGoogle(){try{const c=await (await fetch('/api/config')).json();if(!c.google_client_id||!window.google)return;
   google.accounts.id.initialize({client_id:c.google_client_id,callback:async r=>{try{const j=await jpost('/api/google',{credential:r.credential},{noauth:true});await enter(j.token)}catch(e){$('#a-err').textContent=e.message}}});
-  google.accounts.id.renderButton($('#gbtn'),{theme:'outline',size:'large',text:'continue_with',width:300})}catch{}}
+  window._g=true}catch{}}
 async function boot2(){try{$('#acct').textContent=(await api('/api/me')).username}catch{return}
   await Promise.all([loadChats(),loadDocs()]);save();draw('coach');draw('kb')}
 async function loadChats(){try{st.chats=await api('/api/sessions')}catch{}}
@@ -333,7 +385,7 @@ $('#analyze').onclick=async()=>{const resume=$('#resume').value.trim(),jd=$('#jd
     st.resume=resume;st.analyzed=true;const K=['score','match_score','match','match_percentage'].find(x=>r[x]!=null);st.match=K&&typeof r[K]==='number'?r[K]:null;
     st.skills=Array.isArray(r.skills)?r.skills.filter(x=>x&&x.name).slice(0,8):[];
     o.innerHTML=showResult(r);log('Resume match '+(st.match!=null?st.match+'%':'run'));await loadChats();save()}
-  catch(e){o.innerHTML='<div class="box" style="color:#B3402E">Analysis failed. '+esc(e.message)+'</div>'}$('#analyze').disabled=false};
+  catch(e){o.innerHTML='<div class="box" style="color:var(--err)">Analysis failed. '+esc(e.message)+'</div>'}$('#analyze').disabled=false};
 $('#past').onclick=e=>{const a=e.target.closest('[data-an]');if(a){const x=st.chats.find(z=>z.type==='analysis'&&String(z.id)===a.dataset.an);if(x){$('#aout').innerHTML=showResult(x.result);$('#aout').scrollIntoView()}}};
 
 /* ---------- question bank ---------- */
@@ -379,7 +431,7 @@ function applyTheme(){const d=CF.theme==='dark'||(CF.theme==='system'&&matchMedi
 $$('[data-cf]').forEach(e=>{e.value=CF[e.dataset.cf];e.onchange=()=>{CF[e.dataset.cf]=e.value;S.set('cfg',CF);applyTheme();toast('Saved')}});
 $('#out').onclick=()=>logout();
 $('#exp').onclick=async()=>{const d={profile:P,chats:[],analyses:st.chats.filter(x=>x.type==='analysis')};for(const c of st.chats.filter(x=>x.type!=='analysis')){try{d.chats.push({...c,messages:(await api('/api/sessions/'+c.id)).messages})}catch{}}
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='career-copilot-data.json';a.click()};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='ascendra-data.json';a.click()};
 $('#clrc').onclick=async()=>{if(confirm('Delete all chats?')){try{await api('/api/sessions',{method:'DELETE'})}catch(e){toast(e.message);return}newC('coach');newC('kb');await loadChats();save();draw('coach');draw('kb');toast('Chats deleted')}};
 $('#clra').onclick=async()=>{if(confirm('Delete your chats and documents, then sign out?')){try{await api('/api/sessions',{method:'DELETE'});await api('/api/docs',{method:'DELETE'})}catch{}try{localStorage.clear()}catch{}location.reload()}};
 
@@ -401,7 +453,7 @@ function render(){
 }
 async function start(){
   try{const r=await fetch('/api/config');if(!r.ok)throw 0;$('#dot').className='dot ok';$('#stxt').textContent='Server connected'}catch{$('#dot').className='dot';$('#stxt').textContent='Server not reachable'}
-  if(tok)await boot2();else showAuth(true)}
+  renderSample();if(tok)await boot2();else showLand(true)}
 applyTheme();render();drawBank();show('home');start();window.addEventListener('load',initGoogle);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
