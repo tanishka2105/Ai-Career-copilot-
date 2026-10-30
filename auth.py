@@ -30,9 +30,13 @@ def make_token(user_id):
 def current_user(authorization: str = Header(default="")):
     token = authorization.removeprefix("Bearer ").strip()
     try:
-        return int(jwt.decode(token, SECRET, algorithms=["HS256"])["sub"])
+        uid = int(jwt.decode(token, SECRET, algorithms=["HS256"])["sub"])
     except Exception:
         raise HTTPException(401, "Please sign in")
+    import db
+    if db.get_user_by_id(uid) is None:      # deleted accounts cannot keep using an old token
+        raise HTTPException(401, "Please sign in")
+    return uid
 
 
 def verify_google(credential):
