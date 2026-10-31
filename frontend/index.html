@@ -61,8 +61,11 @@
 <div style="border-top:1px solid var(--line);padding:16px 0 28px;font-size:13px;color:var(--mute);display:flex;gap:18px;flex-wrap:wrap"><span>Ascendra. Intelligence That Moves You Forward.</span><button type="button" data-l="privacy" class="lk2" style="cursor:pointer">Privacy Policy</button><button type="button" data-l="terms" class="lk2" style="cursor:pointer">Terms of Use</button></div>
 </div></div>
 <header>
+  <button type="button" id="sb-t" class="btn ghost sq" aria-label="Close menu" aria-expanded="true" aria-controls="side"><i class="ph ph-caret-left"></i></button>
   <div class="brand"><img src="logo-mark.png" alt="" width="28" height="28" style="border-radius:7px">Ascendra</div>
-  <nav>
+  <div class="status"><span class="dot" id="dot"></span><span id="stxt">Checking server</span></div>
+</header>
+<div class="shell"><aside id="side" aria-label="Main navigation">
     <button type="button" data-v="home"><i class="ph ph-gauge"></i>Overview</button>
     <button type="button" data-v="coach"><i class="ph ph-microphone-stage"></i>Interview coach</button>
     <button type="button" data-v="analyzer"><i class="ph ph-scales"></i>Resume match</button>
@@ -73,9 +76,8 @@
     <button type="button" data-v="kb"><i class="ph ph-books"></i>Knowledge base</button>
     <button type="button" data-v="profile"><i class="ph ph-user-circle"></i>Profile</button>
     <button type="button" data-v="settings"><i class="ph ph-gear"></i>Settings</button>
-  </nav>
-  <div class="status"><span class="dot" id="dot"></span><span id="stxt">Checking server</span></div>
-</header>
+  
+</aside><div id="sb-bg" hidden></div>
 <div class="stage">
 
 <section class="view on" id="v-home">
@@ -200,7 +202,7 @@
 
 <section class="view legal" id="v-privacy"></section>
 <section class="view legal" id="v-terms"></section>
-</div>
+</div></div>
 <footer><span>Ascendra. Intelligence That Moves You Forward.</span><button type="button" data-v="privacy" class="lk2">Privacy Policy</button><button type="button" data-v="terms" class="lk2">Terms of Use</button></footer>
 <div id="toasts" aria-live="polite"></div>
 

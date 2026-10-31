@@ -1,5 +1,5 @@
 // Bump VERSION whenever you deploy changed frontend files. Old caches are deleted on activate.
-const VERSION = 'ascendra-v5';
+const VERSION = 'ascendra-v6';
 const SHELL = ['/', 'index.html', 'style.css', 'app.js', 'manifest.json', 'logo-mark.png', 'icon-192.png'];
 
 self.addEventListener('install', e => {

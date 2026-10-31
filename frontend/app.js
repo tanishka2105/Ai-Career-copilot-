@@ -79,8 +79,19 @@ async function loadProgress(){try{st.prog=await api('/api/progress');st.answers=
 async function loadChats(){try{st.chats=await api('/api/sessions')}catch{}}
 async function loadDocs(){try{st.docs=await api('/api/docs')}catch{}}
 
+/* ---------- sidebar (arrow button opens and closes it) ---------- */
+function mob(){return matchMedia('(max-width:900px)').matches}
+function setSide(open){document.body.classList.toggle('side-closed',!open);const b=$('#sb-t');b.setAttribute('aria-expanded',open);b.setAttribute('aria-label',open?'Close menu':'Open menu');
+  b.innerHTML='<i class="ph ph-caret-'+(open?'left':'right')+'"></i>';$('#sb-bg').hidden=!(open&&mob());if(!mob())S.set('side',open)}
+let wasMob=mob();
+$('#sb-t').onclick=()=>setSide(document.body.classList.contains('side-closed'));
+$('#sb-bg').onclick=()=>setSide(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mob()&&!document.body.classList.contains('side-closed'))setSide(false)});
+addEventListener('resize',()=>{if(mob()!==wasMob){wasMob=mob();setSide(wasMob?false:S.get('side',true)!==false)}});
+setSide(mob()?false:S.get('side',true)!==false);
+
 /* ---------- navigation ---------- */
-function show(v){$$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));$$('header nav button').forEach(a=>a.classList.toggle('on',a.dataset.v===v));$('.stage').scrollTop=0;if(v==='tools'&&!$('#t-resume').value)$('#t-resume').value=st.resume||'';if(v==='jobs')loadJobs();if(v==='coach'||v==='kb')draw(v)}
+function show(v){$$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));$$('#side button').forEach(a=>a.classList.toggle('on',a.dataset.v===v));$('.stage').scrollTop=0;if(mob())setSide(false);if(v==='tools'&&!$('#t-resume').value)$('#t-resume').value=st.resume||'';if(v==='jobs')loadJobs();if(v==='coach'||v==='kb')draw(v)}
 document.addEventListener('click',e=>{const a=e.target.closest('[data-v]');if(a)show(a.dataset.v)});
 
 /* ---------- chats (saved on your account) ---------- */
