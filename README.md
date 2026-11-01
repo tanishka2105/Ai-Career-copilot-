@@ -22,52 +22,22 @@ An AI-powered career platform for smarter resumes, personalized insights, and in
 
 ## Screenshots
 
-<!-- Put your images in docs/screenshots/ with these exact names. Use the same aspect ratio (for example 16:9) for all of them. -->
+<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 41 PM" src="https://github.com/user-attachments/assets/77ff99a5-271a-4bcf-91d6-7540bb81eb47" />
+<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (1)" src="https://github.com/user-attachments/assets/2c57308e-edae-42f4-9382-86e66c854395" />
+<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM" src="https://github.com/user-attachments/assets/63bba4af-66d7-41de-8512-0143e0fd43b2" />
+<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (2)" src="https://github.com/user-attachments/assets/9897721f-30b7-4604-8b7e-a31138aad77d" />
+<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 43 PM" src="https://github.com/user-attachments/assets/bd01a53d-eee1-470b-9e5e-868d3dfe70e2" />
+<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (3)" src="https://github.com/user-attachments/assets/f93126e8-d05f-4d5f-bd5f-023c6e85773b" />
 
-<p align="center">
-  <img src="<img width="1280" height="882" alt="WhatsApp Image 2026-11-01 at 3 07 41 PM" src="https://github.com/user-attachments/assets/512c3056-5f92-4cb3-b566-defcfc93d80f" />
-" alt="Ascendra landing page" width="100%">
-</p>
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <img src="<img width="1280" height="882" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (1)" src="https://github.com/user-attachments/assets/7f19d4b3-d53e-4a68-80a9-eac89011eea0" />
-" alt="Overview" width="100%"><br>
-      <sub><b>Overview</b></sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="<img width="1280" height="882" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (2)" src="https://github.com/user-attachments/assets/e582b179-f2cb-4c47-813f-57e8322d18b7" />
-" alt="Resume match" width="100%"><br>
-      <sub><b>Resume match</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="<img width="1280" height="882" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM" src="https://github.com/user-attachments/assets/388ab540-5352-48fa-9567-fe251090521d" />
-" alt="Interview coach" width="100%"><br>
-      <sub><b>Interview coach</b></sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="<img width="1280" height="882" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (3)" src="https://github.com/user-attachments/assets/65348dfe-8196-4067-81cd-a41a5007b813" />
-" alt="Knowledge base" width="100%"><br>
-      <sub><b>Knowledge base</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="<img width="1280" height="882" alt="WhatsApp Image 2026-11-01 at 3 07 43 PM" src="https://github.com/user-attachments/assets/546e6fa0-361c-4324-8053-dc90aceafdb6" />
-" alt="Job tracker" width="100%"><br>
-      <sub><b>Job tracker</b></sub>
-    </td>
-    <td width="50%"></td>
-  </tr>
-</table>
 
 ### How it helps you
 
 <!-- Drag and drop your video into the GitHub editor and paste the generated link on its own line below. -->
-[![How it helps you](how-it-helps-poster.png)](kling_20261028_VIDEO_A_14_secon_75_0.mp4)
+
+
+https://github.com/user-attachments/assets/8319dc6f-8500-43da-8d59-6df1db89b555
+
 
 ```mermaid
 flowchart LR
