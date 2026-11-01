@@ -39,14 +39,6 @@ An AI-powered career platform for smarter resumes, personalized insights, and in
 https://github.com/user-attachments/assets/8319dc6f-8500-43da-8d59-6df1db89b555
 
 
-```mermaid
-flowchart LR
-    U["Browser or PWA"] -->|"REST API + JWT"| A["FastAPI backend"]
-    A --> D[("PostgreSQL on Supabase")]
-    A --> L["LLM API"]
-    U -->|"Google Sign-In"| G["Google Identity"]
-    G -->|"ID token"| A
-```
 ---
 
 ## Why Ascendra?
