@@ -22,12 +22,12 @@ An AI-powered career platform for smarter resumes, personalized insights, and in
 
 ## Screenshots
 
-<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 41 PM" src="https://github.com/user-attachments/assets/77ff99a5-271a-4bcf-91d6-7540bb81eb47" />
-<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (1)" src="https://github.com/user-attachments/assets/2c57308e-edae-42f4-9382-86e66c854395" />
-<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM" src="https://github.com/user-attachments/assets/63bba4af-66d7-41de-8512-0143e0fd43b2" />
-<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (2)" src="https://github.com/user-attachments/assets/9897721f-30b7-4604-8b7e-a31138aad77d" />
-<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 43 PM" src="https://github.com/user-attachments/assets/bd01a53d-eee1-470b-9e5e-868d3dfe70e2" />
-<img width="500" height="300" alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (3)" src="https://github.com/user-attachments/assets/f93126e8-d05f-4d5f-bd5f-023c6e85773b" />
+<img alt="WhatsApp Image 2026-11-01 at 3 07 41 PM" src="https://github.com/user-attachments/assets/77ff99a5-271a-4bcf-91d6-7540bb81eb47" />
+<img alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (1)" src="https://github.com/user-attachments/assets/2c57308e-edae-42f4-9382-86e66c854395" />
+<img alt="WhatsApp Image 2026-11-01 at 3 07 42 PM" src="https://github.com/user-attachments/assets/63bba4af-66d7-41de-8512-0143e0fd43b2" />
+<img alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (2)" src="https://github.com/user-attachments/assets/9897721f-30b7-4604-8b7e-a31138aad77d" />
+<img alt="WhatsApp Image 2026-11-01 at 3 07 43 PM" src="https://github.com/user-attachments/assets/bd01a53d-eee1-470b-9e5e-868d3dfe70e2" />
+<img alt="WhatsApp Image 2026-11-01 at 3 07 42 PM (3)" src="https://github.com/user-attachments/assets/f93126e8-d05f-4d5f-bd5f-023c6e85773b" />
 
 
 
