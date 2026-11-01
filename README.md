@@ -113,8 +113,8 @@ flowchart LR
 **1. Clone and create a virtual environment**
 
 ```bash
-git clone <your-repo-url>
-cd <your-repo-folder>
+git clone <https://github.com/tanishka2105/Ai-Career-copilot->
+cd <Ai-Career-copilot->
 python -m venv .venv
 ```
 
