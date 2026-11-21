@@ -1,7 +1,7 @@
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const S={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let st=Object.assign({chats:[],cur:{},bm:[],plan:{},an:[],docs:[],resume:'',match:null,skills:[],gaps:[],skillMastery:{},analyzed:false,answers:0,log:[],weeklyPlan:null,projects:[],scorecards:[]},S.get('st',{}));
-let P=S.get('prof',{}),CF=Object.assign({theme:'dark',size:'15',round:'Mixed',level:'Standard',voice:'female',rate:'1',read:'off',lang:'en-US'},S.get('cfg',{}));
+let P=S.get('prof',{}),CF=Object.assign({theme:'dark',size:'15',round:'Mixed',level:'Medium',voice:'female',rate:'1',read:'off',lang:'en-US'},S.get('cfg',{}));
 const base='';let tok=S.get('tok','');
 let lastSync={},syncT={};
 function sync(key,val){if(!tok)return;clearTimeout(syncT[key]);syncT[key]=setTimeout(()=>{const j=JSON.stringify(val);if(lastSync[key]===j)return;lastSync[key]=j;api('/api/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:j.length?JSON.stringify({key,value:val}):''}).catch(()=>{})},800)}
@@ -18,10 +18,11 @@ const wake=on=>{$('#wake').hidden=!on};
 async function api(path,o={}){
   const safe=(o.method||'GET')==='GET'||o.retry,tries=safe?3:1;
   for(let i=0;i<tries;i++){
-    const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),o.timeout||70000);let r;
+    const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),o.timeout||70000);
+    const wakeTimer=setTimeout(()=>wake(true),5000);let r;
     try{const h=Object.assign({},o.headers||{});if(tok)h.Authorization='Bearer '+tok;r=await fetch(base+path,Object.assign({},o,{headers:h,signal:ctl.signal}))}
-    catch(e){clearTimeout(tm);if(i<tries-1){wake(true);await wait(3000*(i+1));continue}wake(false);throw new Error('The server is not responding. It may be waking up, so please try again in a minute.')}
-    clearTimeout(tm);
+    catch(e){clearTimeout(tm);clearTimeout(wakeTimer);if(i<tries-1){wake(true);await wait(3000*(i+1));continue}wake(false);throw new Error('The server is not responding. It may be waking up, so please try again in a minute.')}
+    clearTimeout(tm);clearTimeout(wakeTimer);
     if([502,503,504].includes(r.status)&&i<tries-1){wake(true);await wait(3000*(i+1));continue}
     wake(false);
     if(r.status===401&&!o.noauth){logout(true);throw new Error('Please sign in again.')}
@@ -73,7 +74,7 @@ async function initGoogle(){try{const c=await (await fetch('/api/config')).json(
 async function boot2(){try{$('#acct').textContent=(await api('/api/me')).username}catch{return}
   await Promise.all([loadChats(),loadDocs(),loadState(),loadProgress(),loadScorecards(),loadCareerProgress()]);save();draw('coach');draw('kb')}
 async function loadState(){try{const s=await api('/api/state');
-  if(s.profile){P=s.profile;S.set('prof',P);PF.forEach(([k])=>{const e=$('#p_'+k);if(e)e.value=P[k]||''})}else if(Object.keys(P).length)sync('profile',P);
+  if(s.profile){P=s.profile;S.set('prof',P);PF.forEach(([k])=>{const e=$('#p_'+k);if(e)e.value=P[k]||''});if($('#rm-target'))$('#rm-target').value=P.target||'';}else if(Object.keys(P).length)sync('profile',P);
   if(s.plan)st.plan=s.plan;if(s.bm)st.bm=s.bm;
   if(typeof s.resume==='string')st.resume=s.resume;
   if(s.weekly)st.weeklyPlan=s.weekly;
@@ -107,12 +108,54 @@ addEventListener('resize',()=>{if(mob()!==wasMob){wasMob=mob();setSide(wasMob?fa
 setSide(mob()?false:S.get('side',true)!==false);
 
 /* ---------- navigation ---------- */
-function show(v){$$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));$$('#side button').forEach(a=>a.classList.toggle('on',a.dataset.v===v));$('.stage').scrollTop=0;if(mob())setSide(false);if(v==='tools'&&!$('#t-resume').value)$('#t-resume').value=st.resume||'';if(v==='jobs')loadJobs();if(v==='planner')renderSavedPlanOutputs();if(v==='coach'||v==='kb')draw(v)}
+const previousAppView=()=>history.state&&history.state.ascendraView?history.state.ascendraView:'home';
+let legalHistoryDepth=0;
+function show(v,push=true){
+  $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  $$('#side button').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
+  $('.stage').scrollTop=0;
+  if(mob())setSide(false);
+  if(v==='privacy'||v==='terms'){
+    if(push){legalHistoryDepth++;history.pushState({ascendraView:v,from:'settings'},'',location.pathname+'#'+v);}
+  }else if(push){
+    history.pushState({ascendraView:v},'',location.pathname+'#'+v);
+  }
+  if(v==='tools'&&!$('#t-resume').value)$('#t-resume').value=st.resume||'';
+  if(v==='jobs')loadJobs();
+  if(v==='planner')renderSavedPlanOutputs();
+  if(v==='coach'||v==='kb')draw(v);
+}
 document.addEventListener('click',e=>{const a=e.target.closest('[data-v]');if(a)show(a.dataset.v)});
+function closeLegalView(){
+  if(legalHistoryDepth>0){
+    history.go(-legalHistoryDepth);
+    legalHistoryDepth=0;
+  }
+}
+addEventListener('popstate',e=>{
+  const v=e.state&&e.state.ascendraView;
+  if(v!=='privacy'&&v!=='terms')legalHistoryDepth=0;
+  else if(legalHistoryDepth>0)legalHistoryDepth=Math.max(0,legalHistoryDepth-1);
+  if(v)show(v,false);
+  else show('home',false);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(document.querySelector('#v-privacy.on,#v-terms.on')){
+      closeLegalView();
+    }
+  }
+});
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-legal-back]'))closeLegalView();
+  const policyLink=e.target.closest('[data-legal-view]');
+  if(policyLink)show(policyLink.dataset.legalView,true);
+});
 
 /* ---------- chats (saved on your account) ---------- */
 const cur={},TY={coach:'chat',kb:'doc'},cfgKey=id=>'cfg_'+id;
-function newC(k){cur[k]={id:null,kind:k,title:'New chat',msgs:[],cfg:{round:CF.round,level:CF.level,basis:'',files:[],res:false,lang:'English'}};return cur[k]}
+let coachStarted=false,lastCoachQuestion='',coachSpeaker=true,feedbackAfterAnswer=false;
+function newC(k){cur[k]={id:null,kind:k,title:'New chat',msgs:[],cfg:{round:CF.round,level:CF.level,basis:'',files:[],res:false,lang:'English',feedback:false,speaker:true}};return cur[k]}
 const persist=c=>{if(c.id)S.set(cfgKey(c.id),c.cfg)};
 function draw(k){
   const c=cur[k]||newC(k),q=($('#hq-'+k).value||'').toLowerCase();
@@ -121,63 +164,128 @@ function draw(k){
   const box=$('#m-'+k);
   box.innerHTML=(c.msgs.length?'':`<div class="m a">${intro}</div>`)+c.msgs.map(m=>`<div class="m ${m.role==='user'?'u':m.role==='error'?'e':'a'}">${esc(m.content)}</div>`).join('')+(c.busy?`<div class="m a" style="width:min(420px,80%)">${skel(3)}</div>`:'');
   box.scrollTop=box.scrollHeight;
-  if(k==='coach'){$('#c-round').value=c.cfg.round;$('#c-lang').value=c.cfg.lang||'English';$('#c-level').value=c.cfg.level;$('#c-basis').value=c.cfg.basis;$('#c-res').checked=!!c.cfg.res;
+  if(k==='coach'){if(c.cfg.level==='Standard')c.cfg.level='Medium';$('#c-round').value=c.cfg.round;$('#c-lang').value=c.cfg.lang||'English';$('#c-level').value=c.cfg.level;$('#c-basis').value=c.cfg.basis;$('#c-res').checked=!!c.cfg.res;
+    $('#c-feedback').checked=!!c.cfg.feedback;
     $('#c-files').innerHTML=c.cfg.files.map((f,i)=>`<div class="file"><span>${esc(f.name)}</span><button type="button" class="db" data-rf="${i}" aria-label="Remove ${esc(f.name)}"><i class="ph ph-x"></i></button></div>`).join('');
     $('#score-history').innerHTML=st.scorecards.length?st.scorecards.slice(0,5).map(s=>`<div class="task"><span>Score: <b>${s.result?.average}/10</b></span><small>${esc(s.created_at)}</small></div>`).join(''):'<p class="mute sm">Completed scorecards appear here.</p>'}
 }
 ['coach','kb'].forEach(k=>{
-  $('#hq-'+k).oninput=()=>draw(k);$('#nc-'+k).onclick=()=>{newC(k);draw(k)};
+  $('#hq-'+k).oninput=()=>draw(k);$('#nc-'+k).onclick=()=>{newC(k);if(k==='coach'){coachStarted=false;lastCoachQuestion='';speechSynthesis?.cancel?.()}draw(k)};
   $('#hl-'+k).onclick=async e=>{
     const d=e.target.closest('[data-del]');
     if(d){if(!confirm('Delete this chat?'))return;try{await api('/api/sessions/'+d.dataset.del,{method:'DELETE'})}catch(err){toast(err.message)}if(cur[k]&&String(cur[k].id)===d.dataset.del)newC(k);await loadChats();save();draw(k);return}
     const o=e.target.closest('[data-open]');
     if(o){try{const r=await api('/api/sessions/'+o.dataset.open),id=+o.dataset.open,x=st.chats.find(z=>z.id===id&&z.type===TY[k]);
-      cur[k]={id,kind:k,title:x?x.title:'Chat',msgs:r.messages,cfg:S.get(cfgKey(id),null)||{round:CF.round,level:CF.level,basis:'',files:[],res:false,lang:'English'}};draw(k)}catch(err){toast(err.message)}}};
+      cur[k]={id,kind:k,title:x?x.title:'Chat',msgs:r.messages,cfg:S.get(cfgKey(id),null)||{round:CF.round,level:CF.level,basis:'',files:[],res:false,lang:'English',feedback:false,speaker:true}};if(k==='coach'){coachStarted=true;lastCoachQuestion=r.messages.filter(m=>m.role==='assistant').at(-1)?.content||''}draw(k)}catch(err){toast(err.message)}}};
   $('#s-'+k).onclick=()=>{const i=$('#i-'+k),t=i.value.trim();if(t){i.value='';send(k,t,true)}};
   $('#i-'+k).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#s-'+k).click()}});
 });
 async function send(k,t,real){
   if(k==='kb'&&!st.docs.length){toast('Add a PDF first.');return}
+  if(k==='coach')speechSynthesis?.cancel?.();
   const c=cur[k]||newC(k);c.msgs.push({role:'user',content:t});if(c.title==='New chat')c.title=t.slice(0,45);c.busy=true;draw(k);
   try{let r,a;
-    if(k==='kb'){r=await jpost('/api/ask',{question:t,session_id:c.id});a=r.answer}
-    else{const h=c.msgs.filter(m=>m.role!=='error').slice(-20).map(m=>({role:m.role,content:m.content}));r=await jpost('/api/coach',{messages:h,session_id:c.id,round:c.cfg.round,level:c.cfg.level,language:c.cfg.lang||'English',target:P.target||'',experience:P.exp||'',basis:c.cfg.basis||'',reference:c.cfg.files.map(x=>x.name+': '+x.text.slice(0,2500)).join('\n').slice(0,6000),resume:c.cfg.res?(st.resume||'').slice(0,4000):''});a=r.reply;if(real){st.answers++;if(st.answers%5===1)log('Practice session')}speak(a)}
+    if(k==='kb'){r=await jpost('/api/ask',{question:t,session_id:c.id},{retry:true,timeout:90000});a=r.answer}
+    else{const h=c.msgs.filter(m=>m.role!=='error').slice(-20).map(m=>({role:m.role,content:m.content}));r=await jpost('/api/coach',{messages:h,session_id:c.id,round:c.cfg.round,level:c.cfg.level,language:c.cfg.lang||'English',target:P.target||'',experience:P.exp||'',basis:c.cfg.basis||'',feedback:!!c.cfg.feedback,reference:c.cfg.files.map(x=>x.name+': '+x.text.slice(0,2500)).join('\n').slice(0,6000),resume:c.cfg.res?(st.resume||'').slice(0,4000):''},{retry:true,timeout:90000});a=r.reply;if(real){st.answers++;if(st.answers%5===1)log('Practice session')}lastCoachQuestion=a;coachSpeak(a)}
     if(r.session_id)c.id=r.session_id;persist(c);c.msgs.push({role:'assistant',content:a})}
   catch(e){c.msgs.push({role:'error',content:e.message})}
-  c.busy=false;await Promise.all([loadChats(),k==='coach'?loadProgress():0]);save();draw(k);
+  c.busy=false;
+  if(k==='coach'&&real){$('#i-coach').value='';}
+  await Promise.all([loadChats(),k==='coach'?loadProgress():0]);save();draw(k);
 }
 function apply(t){const c=cur.coach||newC('coach');persist(c);send('coach',t)}
-$('#c-round').onchange=e=>{const c=cur.coach||newC('coach');c.cfg.round=e.target.value;apply('Switch the interview to the '+c.cfg.round+' round now. Confirm in one line and ask the first question of this round.')};
-$('#c-level').onchange=e=>{const c=cur.coach||newC('coach');c.cfg.level=e.target.value;apply('Change the difficulty to '+c.cfg.level+' now. Confirm in one line and ask the next question at this level.')};
-$('#c-lang').onchange=e=>{const c=cur.coach||newC('coach');c.cfg.lang=e.target.value;apply('Continue the interview in '+c.cfg.lang+' from now on. Confirm in one line and ask the next question.')};
-$('#c-basis').onchange=e=>{const c=cur.coach||newC('coach');c.cfg.basis=e.target.value;persist(c);if(e.target.value.trim())apply('The interview basis has changed. Confirm in one line and ask the next question based on it.')};
-$('#c-res').onchange=e=>{const c=cur.coach||newC('coach');c.cfg.res=e.target.checked;persist(c)};
-$('#c-file').onchange=async e=>{const c=cur.coach||newC('coach');let n=0;for(const f of e.target.files){try{c.cfg.files.push({name:f.name,text:await readFile(f)});n++}catch(err){toast('Could not read '+f.name+'. '+err.message)}}
-  e.target.value='';persist(c);draw('coach');if(n)apply('New reference files were attached. Confirm in one line and use them for the next question.')};
+function confirmInterviewReset(label,update){
+  if(coachStarted&&!confirm('Changing '+label+' will reset this interview. Continue?'))return false;
+  if(coachStarted){coachStarted=false;cur.coach=newC('coach');lastCoachQuestion='';speechSynthesis?.cancel?.()}
+  update(cur.coach||newC('coach'));
+  persist(cur.coach);
+  draw('coach');
+  return true;
+}
+$('#c-round').onchange=e=>{const old=(cur.coach||newC('coach')).cfg.round;if(!confirmInterviewReset('the round',c=>c.cfg.round=e.target.value))e.target.value=old};
+$('#c-level').onchange=e=>{const old=(cur.coach||newC('coach')).cfg.level;if(!confirmInterviewReset('the level',c=>c.cfg.level=e.target.value))e.target.value=old};
+$('#c-lang').onchange=e=>{const old=(cur.coach||newC('coach')).cfg.lang;if(!confirmInterviewReset('the language',c=>c.cfg.lang=e.target.value))e.target.value=old};
+$('#c-basis').onchange=e=>{const old=(cur.coach||newC('coach')).cfg.basis;if(!confirmInterviewReset('the interview basis',c=>c.cfg.basis=e.target.value))e.target.value=old};
+$('#c-res').onchange=e=>{const old=(cur.coach||newC('coach')).cfg.res;if(!confirmInterviewReset('resume use',c=>c.cfg.res=e.target.checked))e.target.checked=old};
+$('#c-feedback').onchange=e=>{const c=cur.coach||newC('coach');c.cfg.feedback=e.target.checked;persist(c)};
+$('#c-file').onchange=async e=>{
+  if(coachStarted&&!confirm('Adding files will reset this interview. Continue?')){e.target.value='';return}
+  if(coachStarted){coachStarted=false;cur.coach=newC('coach');lastCoachQuestion='';speechSynthesis?.cancel?.()}
+  const c=cur.coach||newC('coach');
+  for(const f of e.target.files){try{c.cfg.files.push({name:f.name,text:await readFile(f)})}catch(err){toast('Could not read '+f.name+'. '+err.message)}}
+  e.target.value='';persist(c);draw('coach');
+};
 $('#c-files').onclick=e=>{const r=e.target.closest('[data-rf]');if(r){cur.coach.cfg.files.splice(+r.dataset.rf,1);persist(cur.coach);draw('coach')}};
-['Start the interview','Ask me a behavioral question','Ask a technical question','Review my last answer','Give me a harder question'].forEach(t=>{const b=document.createElement('button');b.className='chip';b.textContent=t;b.onclick=()=>send('coach',t);$('#chips').append(b)});
+['Ask me a behavioral question','Ask a technical question','Review my last answer','Give me a harder question'].forEach(t=>{const b=document.createElement('button');b.className='chip';b.textContent=t;b.onclick=()=>{if(!coachStarted)toast('Start the interview first.');else send('coach',t)};$('#chips').append(b)});
+$('#coach-start').onclick=()=>{if(coachStarted)return;coachStarted=true;send('coach','Start the interview',true)};
 
 /* ---------- documents ---------- */
 $('#kbfile').onchange=async e=>{for(const f of e.target.files){const fd=new FormData();fd.append('doc',f);
   try{if(f.size>5*1024*1024)throw new Error('File is too large. The limit is 5 MB.');const r=await api('/api/docs',{method:'POST',body:fd});log('Added '+f.name);toast(f.name+' added')}catch(err){toast(f.name+': '+err.message)}}
-  e.target.value='';await loadDocs();save()};
+  e.target.value='';await loadDocs();save();
+  if(st.docs.length){
+    $('#kb-suggestions').innerHTML=['Summarize this document','What are the key points?','What skills or topics does it cover?'].map(x=>`<button type="button" class="chip" data-kb-suggestion="${esc(x)}">${esc(x)}</button>`).join('');
+  }};
+$('#kb-suggestions').onclick=e=>{
+  const b=e.target.closest('[data-kb-suggestion]');
+  if(b){$('#i-kb').value=b.dataset.kbSuggestion;$('#s-kb').click();}
+};
 $('#kbclear').onclick=async()=>{if(!st.docs.length)return;if(confirm('Remove all documents?')){try{await api('/api/docs',{method:'DELETE'})}catch(e){toast(e.message)}await loadDocs();save()}};
 
 /* ---------- voice ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 $$('[data-dic]').forEach(b=>b.onclick=()=>{
   if(!SR){toast('Voice input needs Chrome or Edge.');return}
-  if(b._r){b._r.stop();b._r=null;b.classList.remove('live');return}
-  const el=$('#'+b.dataset.dic),r=new SR();r.continuous=true;r.lang=CF.lang;b._r=r;
-  r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal){el.value+=(el.value?' ':'')+e.results[i][0].transcript.trim();el.dispatchEvent(new Event('input'))}};
-  r.onend=()=>{if(b._r)try{r.start()}catch{}};
-  r.onerror=x=>{if(x.error==='not-allowed'){b._r=null;b.classList.remove('live');toast('Microphone access is blocked.')}};
+  if(b._r){b._r.stop();b._r=null;clearTimeout(b._silence);b.classList.remove('live');return}
+  const el=$('#'+b.dataset.dic),r=new SR();
+  r.continuous=b.dataset.dic!=='i-coach';
+  r.lang=CF.lang;b._r=r;
+  if(b.dataset.dic==='i-coach')speechSynthesis?.cancel?.();
+  r.onresult=e=>{
+    clearTimeout(b._silence);
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal){
+        el.value+=(el.value?' ':'')+e.results[i][0].transcript.trim();
+        el.dispatchEvent(new Event('input'));
+        if(b.dataset.dic==='i-coach')r.stop();
+      }
+    }
+    if(b.dataset.dic==='i-coach'){
+      b._silence=setTimeout(()=>{try{r.stop()}catch{}},2000);
+    }
+  };
+  r.onend=()=>{
+    clearTimeout(b._silence);
+    b._r=null;b.classList.remove('live');
+    if(r.continuous&&b.dataset.dic!=='i-coach'){}
+  };
+  r.onerror=x=>{
+    clearTimeout(b._silence);b._r=null;b.classList.remove('live');
+    if(x.error==='not-allowed')toast('Microphone access is blocked.');
+  };
   b.classList.add('live');r.start()});
 let voices=[];const loadV=()=>{voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('en'));$('#voice').innerHTML='<option value="female">Female (default)</option><option value="male">Deep male</option>'+voices.map((v,i)=>`<option value="${i}">${esc(v.name)}</option>`).join('');$('#voice').value=CF.voice};
 if('speechSynthesis' in window){loadV();speechSynthesis.onvoiceschanged=loadV}
 function speak(t){if(CF.read!=='on'||!('speechSynthesis' in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t),v=CF.voice;
   const x=!isNaN(v)&&voices[v]?voices[v]:voices.find(a=>(v==='male'?/male|david|guy|daniel|james|mark/i:/female|zira|samantha|aria|jenny|susan|hazel/i).test(a.name))||voices[0];
   if(x)u.voice=x;u.rate=+CF.rate;if(v==='male')u.pitch=.7;speechSynthesis.speak(u)}
+function coachSpeak(text){
+  if(!coachSpeaker||!text||!('speechSynthesis' in window))return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang=(cur.coach?.cfg.lang==='Hinglish')?'en-IN':(cur.coach?.cfg.lang==='English'?'en-US':'en-US');
+  const candidates=voices.filter(v=>v.lang.toLowerCase().startsWith(u.lang.toLowerCase().slice(0,2)));
+  u.voice=candidates.find(v=>/natural|aria|samantha|jenny|google|zira/i.test(v.name))||candidates[0]||null;
+  u.rate=.92;
+  speechSynthesis.speak(u);
+}
+$('#coach-replay').onclick=()=>{if(lastCoachQuestion)coachSpeak(lastCoachQuestion);else toast('No question has started yet.')};
+$('#coach-speaker').onclick=e=>{
+  coachSpeaker=!coachSpeaker;
+  if(!coachSpeaker)speechSynthesis?.cancel?.();
+  e.currentTarget.textContent=coachSpeaker?'Speaker on':'Speaker off';
+  e.currentTarget.setAttribute('aria-pressed',coachSpeaker?'true':'false');
+};
 
 /* ---------- analyzer ---------- */
 $$('input[data-t]').forEach(i=>i.onchange=async()=>{const f=i.files[0];if(!f)return;try{$('#'+i.dataset.t).value=await readFile(f);toast('File loaded')}catch(e){toast('Could not read the file. '+e.message)}i.value=''});
@@ -190,13 +298,23 @@ function showResult(r){const K=['score','match_score','match','match_percentage'
   return `<div class="box" style="display:flex;gap:22px;align-items:center"><b style="font-family:Fraunces,serif;font-size:52px;color:var(--acc)">${sc!=null?esc(typeof sc==='number'&&sc<=100?sc+'%':sc):'Result'}</b><p>${esc(r.summary||'Match between your resume and this job description.')}</p></div>`+Object.entries(rest).map(([k,v])=>`<h2 style="margin:22px 0 6px;text-transform:capitalize">${esc(k.replace(/_/g,' '))}</h2>${gen(v)}`).join('')}
 $('#analyze').onclick=async()=>{const resume=$('#resume').value.trim(),jd=$('#jd').value.trim(),o=$('#aout');
   const jdUrl=$('#jd-url').value.trim();
-  if(!resume){toast('Add your resume.');return}
-  if(!jd&&!jdUrl){toast('Add a job description or URL.');return}
-  if(!P.target){toast('Add a target role in Profile first.');return}
+  let target=$('#rm-target').value.trim();
+  ['resume','jd','rm-target'].forEach(id=>{$('#'+id).style.borderColor=''});
+  ['resume-error','jd-error','target-error'].forEach(id=>{$('#'+id).textContent=''});
+  let invalid=false;
+  if(!resume){$('#resume').style.borderColor='var(--err)';$('#resume-error').textContent='Please enter or upload your resume.';invalid=true}
+  if(!jd&&!jdUrl){$('#jd').style.borderColor='var(--err)';$('#jd-error').textContent='Please enter or upload a job description.';invalid=true}
+  if(!target&&jd){
+    const first=jd.split(/\n+/).map(x=>x.trim()).find(x=>/(engineer|analyst|developer|designer|manager|scientist|architect)/i.test(x));
+    if(first){target=first.slice(0,200).replace(/^job title\s*:?\s*/i,'');$('#rm-target').value=target}
+  }
+  if(!target){$('#rm-target').style.borderColor='var(--err)';$('#target-error').textContent='Please enter your target role.';invalid=true}
+  if(invalid)return;
+  P.target=target;S.set('prof',P);sync('profile',P);
   o.innerHTML='<div class="box">'+skel(7)+'</div>';$('#analyze').disabled=true;
   try{const fd=new FormData();fd.append('resume_text',resume);fd.append('jd',jd);
     fd.append('jd_url',jdUrl);fd.append('target_role',P.target||'');fd.append('experience',P.exp||'');fd.append('timeline',P.date||'');
-    const r=await api('/api/analyze',{method:'POST',body:fd});
+    const r=await api('/api/analyze',{method:'POST',body:fd,retry:true,timeout:90000});
     st.resume=resume;st.analyzed=true;const K=['score','match_score','match','match_percentage'].find(x=>r[x]!=null);st.match=K&&typeof r[K]==='number'?r[K]:null;
     st.skills=Array.isArray(r.skill_gap_map)?r.skill_gap_map.slice(0,12):[];
     st.gaps=Array.isArray(r.gaps)?r.gaps.slice(0,12):[];
@@ -260,10 +378,10 @@ async function adjustPlan(){
 
 function renderSavedPlanOutputs(){
   if(st.weeklyPlan?.weeks){
-    $('#wp-out').innerHTML=st.weeklyPlan.weeks.map(w=>`<div class="box" style="margin-bottom:10px"><h3>Week ${w.week}: ${esc(w.theme)}</h3>${w.tasks.map(t=>`<label class="task"><span><b>${esc(t.task)}</b><br><span class="sm mute">${esc(t.skill)}${t.resource?' - '+esc(t.resource):''}</span></span></label>`).join('')}</div>`).join('');
+    $('#wp-out').innerHTML=st.weeklyPlan.weeks.map(w=>`<div class="box" style="margin-bottom:10px"><h3>Week ${w.week}: ${esc(w.goal||w.theme)}</h3>${w.tasks.map(t=>`<label class="task"><input type="checkbox"><span><b>${esc(t.task)}</b><br><span class="sm mute">${esc(t.skill)}${t.resource?' - '+esc(t.resource):''}${t.estimated_hours?' - '+t.estimated_hours+' hours':''}</span></span></label>`).join('')}</div>`).join('');
   }
   if(st.projects?.length){
-    $('#pf-out').innerHTML=st.projects.map((p,i)=>`<div class="box" style="margin-bottom:10px"><label class="task"><input type="checkbox" data-pc="${i}" ${p.completed?'checked':''}><span><b>${esc(p.title)}</b><br><span class="sm mute">${esc(p.description)}</span></span></label><p class="sm mute">${esc(p.difficulty)} - ${esc(p.duration)}<br>Skills: ${esc(p.skills_covered.join(', '))}</p></div>`).join('');
+    $('#pf-out').innerHTML=st.projects.map((p,i)=>`<div class="box" style="margin-bottom:10px"><label class="task"><input type="checkbox" data-pc="${i}" ${p.completed?'checked':''}><span><b>${esc(p.title)}</b><br><span class="sm mute">${esc(p.description)}</span></span></label><p class="sm mute">${esc(p.difficulty)} - ${esc(p.duration)}<br>Skill gap: ${esc(p.skill_gap||p.skills_covered?.join(', ')||'')}</p>${p.tech_stack?.length?`<p class="sm mute">Tech stack: ${esc(p.tech_stack.join(', '))}</p>`:''}</div>`).join('');
   }
   if(st.planAdjustment){
     $('#pl-sub').textContent=st.planAdjustment.note+(st.planAdjustment.priorities.length?' Priority gaps: '+st.planAdjustment.priorities.join(', ')+'.':'');
@@ -272,32 +390,32 @@ function renderSavedPlanOutputs(){
 
 $('#wp-go').onclick=async()=>{
   const a=lastAn();
-  if(!a){toast('Run a resume match first.');return}
+  if(!a){$('#wp-out').innerHTML='<div class="box"><p>Run Resume match first.</p><button type="button" class="btn" id="wp-resume">Go to Resume match</button></div>';$('#wp-resume').onclick=()=>show('analyzer');return}
   const role=P.target||$('#brole')?.value||'Target role';
   const gaps=a.gaps||[];
   const skill_gap_map=a.skill_gap_map||[];
   const btn=$('#wp-go');
-  btn.disabled=true;$('#wp-out').innerHTML='<div class="box">'+skel(6)+'</div>';
+  btn.disabled=true;$('#wp-out').innerHTML='<div class="box">Generating your plan...</div>';
   try{
-    const r=await jpost('/api/weekly-plan',{target_role:role,gaps,skill_gap_map,weeks:+$('#wp-weeks').value});
+    const r=await jpost('/api/weekly-plan',{target_role:role,gaps,skill_gap_map,weeks:+$('#wp-weeks').value},{retry:true,timeout:90000});
     st.weeklyPlan=r;
-    $('#wp-out').innerHTML=r.weeks.map(w=>`<div class="box" style="margin-bottom:10px"><h3>Week ${w.week}: ${esc(w.theme)}</h3>${w.tasks.map(t=>`<label class="task"><span><b>${esc(t.task)}</b><br><span class="sm mute">${esc(t.skill)}${t.resource?' - '+esc(t.resource):''}</span></span></label>`).join('')}</div>`).join('');
+    $('#wp-out').innerHTML=r.weeks.map(w=>`<div class="box" style="margin-bottom:10px"><h3>Week ${w.week}: ${esc(w.goal||w.theme)}</h3>${w.tasks.map(t=>`<label class="task"><input type="checkbox"><span><b>${esc(t.task)}</b><br><span class="sm mute">${esc(t.skill)}${t.resource?' - '+esc(t.resource):''}${t.estimated_hours?' - '+t.estimated_hours+' hours':''}</span></span></label>`).join('')}</div>`).join('');
     await adjustPlan();save();
-  }catch(e){$('#wp-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div>'}
+  }catch(e){$('#wp-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div><button type="button" class="btn" id="wp-retry">Try again</button>';$('#wp-retry').onclick=()=>$('#wp-go').click()}
   btn.disabled=false;
 };
 
 $('#pf-go').onclick=async()=>{
   const a=lastAn();
-  if(!a){toast('Run a resume match first.');return}
+  if(!a){$('#pf-out').innerHTML='<div class="box"><p>Run Resume match first.</p><button type="button" class="btn" id="pf-resume">Go to Resume match</button></div>';$('#pf-resume').onclick=()=>show('analyzer');return}
   const btn=$('#pf-go');
-  btn.disabled=true;$('#pf-out').innerHTML='<div class="box">'+skel(5)+'</div>';
+  btn.disabled=true;$('#pf-out').innerHTML='<div class="box">Generating project ideas...</div>';
   try{
-    const r=await jpost('/api/portfolio',{target_role:P.target||'Target role',gaps:a.gaps||[],skill_gap_map:a.skill_gap_map||[]});
+    const r=await jpost('/api/project-suggestions',{target_role:P.target||'Target role',gaps:a.gaps||[],skill_gap_map:a.skill_gap_map||[]},{retry:true,timeout:90000});
     st.projects=r.projects||[];
-    $('#pf-out').innerHTML=st.projects.map((p,i)=>`<div class="box" style="margin-bottom:10px"><label class="task"><input type="checkbox" data-pc="${i}" ${p.completed?'checked':''}><span><b>${esc(p.title)}</b><br><span class="sm mute">${esc(p.description)}</span></span></label><p class="sm mute">${esc(p.difficulty)} - ${esc(p.duration)}<br>Skills: ${esc(p.skills_covered.join(', '))}</p></div>`).join('');
+    $('#pf-out').innerHTML=st.projects.map((p,i)=>`<div class="box" style="margin-bottom:10px"><label class="task"><input type="checkbox" data-pc="${i}" ${p.completed?'checked':''}><span><b>${esc(p.title)}</b><br><span class="sm mute">${esc(p.description)}</span></span></label><p class="sm mute">${esc(p.difficulty)} - ${esc(p.duration)}<br>Skill gap: ${esc(p.skill_gap||p.skills_covered?.join(', ')||'')}</p>${p.tech_stack?.length?`<p class="sm mute">Tech stack: ${esc(p.tech_stack.join(', '))}</p>`:''}</div>`).join('');
     save();
-  }catch(e){$('#pf-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div>'}
+  }catch(e){$('#pf-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div><button type="button" class="btn" id="pf-retry">Try again</button>';$('#pf-retry').onclick=()=>$('#pf-go').click()}
   btn.disabled=false;
 };
 
@@ -313,6 +431,8 @@ $('#pf-out').onchange=e=>{
 const PF=[['name','Full name'],['email','Email','email'],['phone','Phone','tel'],['loc','Location'],['title','Current job title'],['company','Current company'],['exp','Years of experience','sel',['0 to 1','1 to 3','3 to 6','6 to 10','10 or more']],['edu','Highest education'],['target','Target role'],['tcomp','Target companies'],['sal','Expected salary'],['notice','Notice period','sel',['Immediate','15 days','30 days','60 days','90 days']],['mode','Work mode','sel',['Remote','Hybrid','On-site']],['date','Interview date','date'],['li','LinkedIn URL','url'],['gh','GitHub or portfolio URL','url'],['skills','Key skills, separated by commas','text','full'],['sum','Professional summary','ta','full']];
 $('#pform').innerHTML=PF.map(([k,l,t,x])=>`<div class="${x==='full'?'full':''}"><label class="lbl" for="p_${k}">${l}</label>${t==='ta'?`<textarea id="p_${k}"></textarea>`:t==='sel'?`<select id="p_${k}"><option value="">Select</option>${x.map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="p_${k}" type="${t||'text'}">`}</div>`).join('');
 PF.forEach(([k])=>{const e=$('#p_'+k);e.value=P[k]||'';e.oninput=e.onchange=()=>{P[k]=e.value;S.set('prof',P);sync('profile',P);render()}});
+if($('#rm-target'))$('#rm-target').value=P.target||'';
+$('#rm-target').oninput=e=>{P.target=e.target.value.trim();S.set('prof',P);sync('profile',P);const p=$('#p_target');if(p)p.value=P.target;render()};
 $('#pres').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=await readFile(f);if(t){st.resume=t;$('#pres-s').textContent=f.name+' saved';save()}else toast('Could not read the file.');e.target.value=''};
 
 /* ---------- settings ---------- */
@@ -359,7 +479,7 @@ $('#s-emb').onclick=async()=>{try{await jpost('/api/email',{email:$('#s-em').val
 async function tool(path,btn){const resume=$('#t-resume').value.trim(),jd=$('#t-jd').value.trim();
   if(resume.length<50||jd.length<30){toast('Add your resume and the job description.');return}
   btn.disabled=true;$('#t-out').innerHTML='<div class="box">'+skel(6)+'</div>';
-  try{const r=await jpost(path,{resume,jd});$('#t-out').innerHTML='<div class="box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Review before you use it</b><button type="button" class="btn ghost" id="t-copy">Copy</button></div><div id="t-text" style="white-space:pre-wrap"></div></div>';
+  try{const r=await jpost(path,{resume,jd},{retry:true,timeout:90000});$('#t-out').innerHTML='<div class="box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Review before you use it</b><button type="button" class="btn ghost" id="t-copy">Copy</button></div><div id="t-text" style="white-space:pre-wrap"></div></div>';
     $('#t-text').textContent=r.text;$('#t-copy').onclick=()=>navigator.clipboard.writeText(r.text).then(()=>toast('Copied'))}
   catch(e){$('#t-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div>'}btn.disabled=false}
 $('#t-rw').onclick=e=>tool('/api/rewrite',e.currentTarget);$('#t-cv').onclick=e=>tool('/api/cover',e.currentTarget);
@@ -367,7 +487,7 @@ let GEN=[];
 function drawGen(){$('#bout').innerHTML=GEN.map((q,i)=>`<details><summary><span>${esc(q.question)} <span class="sm mute">${esc(q.category)}</span></span></summary><p style="margin:8px 0">${esc(q.answer)}</p><button type="button" class="btn" data-gp="${i}">Practice in coach</button></details>`).join('')}
 $('#bgo').onclick=async()=>{const role=($('#brole').value.trim()||P.target||'').slice(0,80);if(!role){toast('Enter a role first.');return}
   const b=$('#bgo');b.disabled=true;$('#bout').innerHTML='<div class="box">'+skel(5)+'</div>';
-  try{const r=await jpost('/api/bank',{role,category:$('#bcat2').value,level:$('#blev').value});GEN=r.questions.concat(GEN);drawGen()}
+  try{const r=await jpost('/api/bank',{role,category:$('#bcat2').value,level:$('#blev').value},{retry:true,timeout:90000});GEN=r.questions.concat(GEN);drawGen()}
   catch(e){$('#bout').innerHTML='<p style="color:var(--err)">'+esc(e.message)+'</p>'}b.disabled=false};
 $('#bout').onclick=e=>{const p=e.target.closest('[data-gp]');if(p){const q=GEN[p.dataset.gp].question,c=newC('coach');c.title='Practice: '+q.slice(0,30);show('coach');send('coach','Ask me this question and score my answer: '+q)}};
 /* ---------- job tracker ---------- */
@@ -375,13 +495,17 @@ let JOBS=[],jedit=null;
 async function loadJobInsights(){
   try{
     const r=await api('/api/jobs/insights');
-    const dim=(title,rows)=>rows&&rows.length?`<h3>${esc(title)}</h3>`+rows.slice(0,8).map(x=>`<p style="margin:5px 0">${esc(x.label||x.role)}: <b>${x.response_rate}%</b> <span class="mute sm">(${x.responded} of ${x.applied})</span></p>`).join(''):'';
-    $('#j-insights').innerHTML=r.insights?.length?`<div class="box">${r.insights.map(x=>`<p>${esc(x)}</p>`).join('')}</div>`:'<p class="mute sm">Track enough applications and patterns will appear here.</p>'+dim('Role types',r.role_type_stats)+dim('Company domains',r.domain_stats)+dim('Channels or styles',r.channel_stats);
+    if(!r.eligible){
+      $('#j-insights').innerHTML=`<div class="box"><p>${esc(r.empty_text)}</p><div class="track" style="margin-top:10px"><i style="width:${Math.min(100,r.total/5*100)}%"></i></div></div>`;
+      return;
+    }
+    const rows=(r.role_stats||[]).map(x=>`<p style="margin:5px 0">${esc(x.role)}: <b>${x.response_rate}%</b> <span class="mute sm">${x.responded} responses / ${x.applied} applications</span></p>`).join('');
+    $('#j-insights').innerHTML=`<div class="box">${r.insights.map(x=>`<p>${esc(x)}</p>`).join('')}</div><h3>Role types</h3>${rows}`;
   }catch(e){$('#j-insights').innerHTML='<p style="color:var(--err)">Could not load response insights.</p>'}
 }
 async function loadJobs(){try{JOBS=await api('/api/jobs')}catch(e){toast(e.message)}drawJobs();await loadJobInsights()}
 function drawJobs(){const f=$('#jf').value,L=JOBS.filter(j=>!f||j.status===f);if($('#jo').value==='i')L.sort((a,b)=>(a.interview_on||'9').localeCompare(b.interview_on||'9'));
-  const ST=['Applied','Interview','Offer','Rejected','Withdrawn'];
+  const ST=['Applied','Shortlisted','Interview','Offer','Rejected','Withdrawn'];
   $('#jlist').innerHTML=L.length?L.map(j=>`<tr><td><b>${esc(j.company)}</b><br><span class="sm mute">${esc(j.role)}</span></td><td><select data-js="${j.id}" aria-label="Status for ${esc(j.company)}" style="width:auto">${ST.map(s=>`<option ${s===j.status?'selected':''}>${s}</option>`).join('')}</select></td><td class="sm">${esc(j.applied_on||'-')}</td><td class="sm">${esc(j.interview_on||'-')}</td><td style="text-align:right;white-space:nowrap"><button type="button" class="btn ghost" data-je="${j.id}">Edit</button> <button type="button" class="btn ghost" data-jd="${j.id}" aria-label="Delete ${esc(j.company)}"><i class="ph ph-trash"></i></button></td></tr>${j.notes?`<tr><td colspan="5" class="sm mute">${esc(j.notes)}</td></tr>`:''}`).join(''):'<tr><td colspan="5" class="mute">No applications yet. Add your first one above.</td></tr>'}
 const jbody=()=>({company:$('#jc').value.trim(),role:$('#jr').value.trim(),status:$('#js').value,applied_on:$('#ja').value,interview_on:$('#ji').value,notes:$('#jn').value,role_type:$('#jrt').value.trim(),domain:$('#jdomain').value.trim(),channel:$('#jchannel').value.trim(),response_date:$('#jrdate').value});
 function jreset(){jedit=null;['jc','jr','ja','ji','jn','jrt','jdomain','jchannel','jrdate'].forEach(i=>$('#'+i).value='');$('#js').value='Applied';$('#jsave').textContent='Add application';$('#jcancel').hidden=true}
@@ -392,11 +516,11 @@ $('#jlist').onclick=async e=>{const ed=e.target.closest('[data-je]'),de=e.target
   if(ed){const j=JOBS.find(x=>x.id==ed.dataset.je);jedit=j.id;$('#jc').value=j.company;$('#jr').value=j.role;$('#js').value=j.status;$('#ja').value=j.applied_on||'';$('#ji').value=j.interview_on||'';$('#jn').value=j.notes||'';$('#jrt').value=j.role_type||'';$('#jdomain').value=j.domain||'';$('#jchannel').value=j.channel||'';$('#jrdate').value=j.response_date||'';$('#jsave').textContent='Save changes';$('#jcancel').hidden=false;$('#jc').focus()}
   if(de&&confirm('Delete this application?')){try{await api('/api/jobs/'+de.dataset.jd,{method:'DELETE'});await loadJobs()}catch(err){toast(err.message)}}};
 $('#jlist').onchange=async e=>{const id=e.target.dataset.js;if(!id)return;const j=JOBS.find(x=>x.id==id);
-  try{await api('/api/jobs/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...j,status:e.target.value})});j.status=e.target.value}catch(err){toast(err.message);drawJobs()}};
+  try{await api('/api/jobs/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...j,status:e.target.value})});j.status=e.target.value;drawJobs();await loadJobInsights()}catch(err){toast(err.message);drawJobs()}};
 /* ---------- scorecard ---------- */
 $('#sc-go').onclick=async()=>{const c=cur.coach;if(!c||!c.id){toast('Answer at least one interview question first.');return}
-  show('score');$('#sc-out').innerHTML='<div class="box">'+skel(8)+'</div>';
-  try{const r=await jpost('/api/scorecard',{session_id:c.id}),L=a=>a.length?a.map(x=>`<p style="margin-bottom:6px">${esc(x)}</p>`).join(''):'<p class="mute sm">None listed.</p>';
+  show('score');const button=$('#sc-go');button.disabled=true;$('#sc-out').innerHTML='<div class="box">Preparing your scorecard...</div>';
+  try{const r=await jpost('/api/scorecard',{session_id:c.id},{retry:true,timeout:90000}),L=a=>a.length?a.map(x=>`<p style="margin-bottom:6px">${esc(x)}</p>`).join(''):'<p class="mute sm">None listed.</p>';
     $('#sc-out').innerHTML=`<div class="box" style="display:flex;gap:22px;align-items:center;flex-wrap:wrap"><b style="font-family:Fraunces,serif;font-size:52px;color:var(--acc)">${r.average}/10</b><div><p>Average over ${r.count} answer${r.count>1?'s':''} you typed. ${esc(new Date().toLocaleDateString())}</p><p class="mute sm">${esc(r.note)}</p></div></div>
     <p class="mute sm" style="margin:10px 0">Scoring criteria: ${esc(r.criteria)}</p>
     <div class="cols"><div><h2>Strengths</h2>${L(r.strengths)}</div><div><h2>To improve</h2>${L(r.weaknesses)}</div></div>
@@ -407,33 +531,40 @@ $('#sc-go').onclick=async()=>{const c=cur.coach;if(!c||!c.id){toast('Answer at l
     await loadScorecards();
     draw('coach');
     await adjustPlan();}
-  catch(e){$('#sc-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div>'}};
+  catch(e){$('#sc-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div><button type="button" class="btn" id="sc-retry">Try again</button>';$('#sc-retry').onclick=()=>$('#sc-go').click()}
+  button.disabled=false};
 /* ---------- guest resume match ---------- */
 $('#g-go').onclick=async()=>{const r=$('#g-resume').value.trim(),j=$('#g-jd').value.trim(),o=$('#g-out');
   if(r.length<50||j.length<30){o.textContent='Paste a longer resume and job description.';return}
   const b=$('#g-go');b.disabled=true;o.innerHTML='<div class="box">'+skel(5)+'</div>';
-  try{const fd=new FormData();fd.append('resume_text',r);fd.append('jd',j);const x=await api('/api/guest/analyze',{method:'POST',body:fd,noauth:true}),L=a=>(a||[]).map(t=>`<p style="margin-bottom:6px">${esc(t)}</p>`).join('')||'<p class="mute sm">None listed.</p>';
+  try{const fd=new FormData();fd.append('resume_text',r);fd.append('jd',j);const x=await api('/api/guest/analyze',{method:'POST',body:fd,noauth:true,retry:true,timeout:90000}),L=a=>(a||[]).map(t=>`<p style="margin-bottom:6px">${esc(t)}</p>`).join('')||'<p class="mute sm">None listed.</p>';
     o.innerHTML=`<div class="box"><b style="font-family:Fraunces,serif;font-size:44px;color:var(--acc)">${esc(x.score??'-')}%</b><div class="cols" style="margin-top:8px"><div><h3>Strengths</h3>${L(x.strengths)}</div><div><h3>Gaps</h3>${L(x.gaps)}</div></div><p class="mute sm" style="margin-top:10px">This is a short preview. <button type="button" class="lk" data-auth="up">Create an account</button> for interview questions, a resume rewrite and saved history.</p></div>`}
   catch(e){o.innerHTML='<p style="color:var(--err)">'+esc(e.message)+'</p>'}b.disabled=false};
 let LG={};
 function renderLegal(){
   const em=LG.contact_email?`<p>Contact: <a href="mailto:${esc(LG.contact_email)}" style="color:var(--acc)">${esc(LG.contact_email)}</a></p>`:'',nm=LG.legal_name?esc(LG.legal_name):'the operator of Ascendra',ai=LG.ai_provider?esc(LG.ai_provider):'a third-party AI language model provider';
-  $('#v-privacy').innerHTML=`<h1>Privacy Policy</h1><p class="sub">Last updated 28 October 2026.</p>
+  $('#v-privacy').innerHTML=`<button type="button" class="btn ghost no-print" data-legal-back><i class="ph ph-arrow-left"></i>Back to Settings</button>
+<h1>Privacy Policy</h1><p class="sub">Last updated 28 October 2026.</p>
 <h2>Who we are</h2><p>Ascendra is operated by ${nm}.</p>${em}
 <h2>What we collect and where it is stored</h2><p>On our servers: your username (or Google email address), a salted hash of your password, the resume and job description text you submit, the text of PDFs you add to the knowledge base, your chat messages and your analysis results. In your browser only: profile details, preferences, planner progress and practice counts. We do not run analytics or advertising trackers.</p>
 <h2>How we use it</h2><p>Only to run the features you ask for: resume matching, mock interviews and answers from your documents. Text you submit is sent to ${ai} to generate replies.</p>
 <h2>Service providers</h2><p>Hosting: Render. Database: Supabase (PostgreSQL). Optional sign-in: Google. AI processing: ${ai}. Your browser also loads fonts from Google Fonts and icons from jsDelivr. Voice dictation uses your browser's speech recognition service, which may send audio to its provider.</p>
-<h2>Deleting your data</h2><p>In Settings you can clear your chat history, remove documents, or delete your account, which permanently removes your account, chats, documents and analyses from our database. Signing out only clears data stored in this browser. Copies may remain in provider backups for a limited time, and text already sent to the AI provider is handled under that provider's own policy.</p>`;
-  $('#v-terms').innerHTML=`<h1>Terms of Use</h1><p class="sub">Last updated 28 October 2026.</p>
+<h2>Deleting your data</h2><p>In Settings you can clear your chat history, remove documents, or delete your account, which permanently removes your account, chats, documents and analyses from our database. Signing out only clears data stored in this browser. Copies may remain in provider backups for a limited time, and text already sent to the AI provider is handled under that provider's own policy.</p>
+<p><button type="button" class="lk2" data-legal-view="terms" style="cursor:pointer;color:var(--acc)">Read Terms of Use</button></p>`;
+  $('#v-terms').innerHTML=`<button type="button" class="btn ghost no-print" data-legal-back><i class="ph ph-arrow-left"></i>Back to Settings</button>
+<h1>Terms of Use</h1><p class="sub">Last updated 28 October 2026.</p>
 <h2>Use of the service</h2><p>Ascendra provides interview practice and resume feedback. Do not upload documents you have no right to share, or anyone else's personal data without permission.</p>
 <h2>Your account</h2><p>Keep your password private. You can delete your account at any time in Settings.</p>
 <h2>No guarantees</h2><p>Feedback is AI generated and can be wrong. It does not promise an interview or a job offer.</p>
 <h2>Your content</h2><p>You keep ownership of what you upload and allow us to process it to run the service.</p>
-<h2>Changes</h2><p>We may update these terms and will change the date above when we do.</p>${em}`}
+<h2>Changes</h2><p>We may update these terms and will change the date above when we do.</p>${em}
+<p><button type="button" class="lk2" data-legal-view="privacy" style="cursor:pointer;color:var(--acc)">Read Privacy Policy</button></p>`}
 async function start(){
+  try{await fetch('/health',{cache:'no-store'})}catch{}
+  setInterval(()=>{fetch('/health',{cache:'no-store'}).catch(()=>{})},600000);
   try{LG=await api('/api/config',{noauth:true});renderLegal();$('#dot').className='dot ok';$('#stxt').textContent='Server connected';if(!window._g)initGoogle()}catch{$('#dot').className='dot';$('#stxt').textContent='Server not reachable'}
   renderSample();if(tok)await boot2();else showLand(true);if(rtok){showLand(true);openAuth('reset')}}
-applyTheme();render();drawBank();renderLegal();show('home');start();window.addEventListener('load',initGoogle);
+applyTheme();render();drawBank();renderLegal();history.replaceState({ascendraView:'home'},'',location.pathname+'#home');show('home',false);start();window.addEventListener('load',initGoogle);
 if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;let rl=false;
   navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
   navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!rl){rl=true;location.reload()}})}

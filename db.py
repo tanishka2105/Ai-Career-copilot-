@@ -157,6 +157,12 @@ def get_chunks(user_id):
         return [r[0] for r in c.execute(select(chunks.c.text).where(chunks.c.user_id == user_id))]
 
 
+def get_document_chunks(user_id):
+    q = select(chunks.c.doc_name, chunks.c.text).where(chunks.c.user_id == user_id)
+    with engine.connect() as c:
+        return [{"source": r[0] or "Document", "text": r[1]} for r in c.execute(q)]
+
+
 def list_docs(user_id):
     q = (select(chunks.c.doc_name, func.count().label("chunks"))
          .where(chunks.c.user_id == user_id).group_by(chunks.c.doc_name))

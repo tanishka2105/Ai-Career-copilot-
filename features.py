@@ -313,6 +313,27 @@ def _run(uid, name, task):
         raise HTTPException(502, "The AI did not respond, please try again")
 
 
+def _run_json_list(uid, name, task):
+    last_error = None
+    for attempt in range(3):
+        try:
+            raw = ask_llm(task).strip()
+            cleaned = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.I)
+            cleaned = re.sub(r"\s*```$", "", cleaned)
+            start, end = cleaned.find("["), cleaned.rfind("]")
+            if start < 0 or end <= start:
+                raise ValueError("missing JSON array")
+            items = json.loads(cleaned[start:end + 1])
+            if isinstance(items, list):
+                return items
+        except Exception as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(1 + attempt)
+    print(name, "JSON error:", type(last_error).__name__)
+    raise HTTPException(502, "The AI returned invalid JSON, please try again")
+
+
 def _data(t):
     return f"<RESUME>\n{t.resume}\n</RESUME>\n<JOB DESCRIPTION>\n{t.jd}\n</JOB DESCRIPTION>"
 
@@ -376,7 +397,7 @@ t_job = Table("applications", db.meta, Column("id", Integer, primary_key=True, a
               Column("applied_on", String(10)), Column("interview_on", String(10)), Column("notes", Text),
               Column("role_type", String(80)), Column("domain", String(80)),
               Column("channel", String(80)), Column("response_date", String(10)))
-STATUSES = ["Applied", "Interview", "Offer", "Rejected", "Withdrawn"]
+STATUSES = ["Applied", "Interview", "Offer", "Rejected", "Withdrawn", "Shortlisted"]
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -523,30 +544,29 @@ def portfolio(r: PortfolioReq, uid: int = Depends(auth.current_user)):
         f"{s.get('skill','?')} (have {s.get('current_level','?')}, need {s.get('required_level','?')})"
         for s in r.skill_gap_map[:10] if isinstance(s, dict)
     ) or "see gaps above"
-    raw = _run(uid, "portfolio",
+    prompt = (
         "You are a career pivot coach. Suggest 4 to 6 portfolio projects that would help this candidate prove "
-        "they have closed their skill gaps for the target role. Each project should be small enough to finish in "
-        "1 to 3 weeks. Reply with JSON only: "
-        '[{"title":"","description":"what to build and why it matters","skills_covered":["skill1"],'
+        "they have closed their skill gaps for the target role. Return 3 to 5 projects. Each project should be small enough to finish in "
+        "1 to 3 weeks. Return a JSON array only: "
+        '[{"title":"","skill_gap":"specific skill gap","description":"","tech_stack":["tool"],'
         '"difficulty":"Beginner|Intermediate|Advanced","duration":"e.g. 1-2 weeks"}]. English.\n'
         f"<TARGET ROLE>{r.target_role}</TARGET ROLE>\n"
         f"<SKILL GAPS>{gap_text}</SKILL GAPS>\n"
         f"<SKILL GAP MAP>{sgm_text}</SKILL GAP MAP>")
-    try:
-        items = json.loads(raw[raw.find("["):raw.rfind("]") + 1])
-    except Exception:
-        raise HTTPException(502, "The AI returned an unreadable list, please try again")
+    items = _run_json_list(uid, "portfolio", prompt)
     out = []
     for i in items if isinstance(items, list) else []:
         if isinstance(i, dict) and i.get("title"):
             out.append({
                 "title": str(i["title"])[:120],
                 "description": str(i.get("description", ""))[:500],
-                "skills_covered": [str(s)[:60] for s in i.get("skills_covered", []) if s][:6],
+                "skill_gap": str(i.get("skill_gap", i.get("skills_covered", [""])[0] if i.get("skills_covered") else ""))[:80],
+                "skills_covered": [str(s)[:60] for s in i.get("skills_covered", i.get("tech_stack", [])) if s][:6],
+                "tech_stack": [str(s)[:60] for s in i.get("tech_stack", []) if s][:8],
                 "difficulty": str(i.get("difficulty", "Intermediate"))[:20],
                 "duration": str(i.get("duration", "1-2 weeks"))[:30]
             })
-    if len(out) < 2:
+    if len(out) < 3:
         raise HTTPException(502, "The AI returned too few project ideas, please try again")
     db.save_portfolio_projects(uid, r.target_role.strip(), json.dumps({"projects": out[:6]}))
     return {"projects": out[:6]}
@@ -555,6 +575,11 @@ def portfolio(r: PortfolioReq, uid: int = Depends(auth.current_user)):
 @router.get("/api/portfolio")
 def latest_portfolio(uid: int = Depends(auth.current_user)):
     return {"portfolio": db.get_latest_portfolio_projects(uid)}
+
+
+@router.post("/api/project-suggestions")
+def project_suggestions(r: PortfolioReq, uid: int = Depends(auth.current_user)):
+    return portfolio(r, uid)
 
 
 # ---------- weekly learning plan (built from skill gaps) ----------
@@ -574,20 +599,17 @@ def weekly_plan(r: WeeklyPlanReq, uid: int = Depends(auth.current_user)):
         f"{s.get('skill','?')} (have {s.get('current_level','?')}, need {s.get('required_level','?')}, severity {s.get('gap_severity','?')})"
         for s in r.skill_gap_map[:10] if isinstance(s, dict)
     ) or "see gaps above"
-    raw = _run(uid, "weeklyplan",
+    prompt = (
         f"You are a career pivot coach. Create a {r.weeks}-week learning plan to help the candidate close "
         "their skill gaps for the target role. Prioritize critical and high-severity gaps first. "
         "Each week should have 3 to 5 tasks with specific actions. "
-        "Reply with JSON only: "
-        '[{"week":1,"theme":"focus area","tasks":[{"task":"specific action","resource":"free resource or search term",'
-        '"skill":"which gap this addresses"}]}]. English.\n'
+        "Return a JSON array only: "
+        '[{"week":1,"goal":"weekly goal","theme":"focus area","tasks":[{"task":"specific action",'
+        '"resource":"free resource or search term","skill":"skill gap","estimated_hours":3}]}]. English.\n'
         f"<TARGET ROLE>{r.target_role}</TARGET ROLE>\n"
         f"<SKILL GAPS>{gap_text}</SKILL GAPS>\n"
         f"<SKILL GAP MAP>{sgm_text}</SKILL GAP MAP>")
-    try:
-        items = json.loads(raw[raw.find("["):raw.rfind("]") + 1])
-    except Exception:
-        raise HTTPException(502, "The AI returned an unreadable plan, please try again")
+    items = _run_json_list(uid, "weeklyplan", prompt)
     out = []
     for w in items if isinstance(items, list) else []:
         if isinstance(w, dict) and w.get("week") is not None:
@@ -597,12 +619,14 @@ def weekly_plan(r: WeeklyPlanReq, uid: int = Depends(auth.current_user)):
                     tasks.append({
                         "task": str(t["task"])[:200],
                         "resource": str(t.get("resource", ""))[:200],
-                        "skill": str(t.get("skill", ""))[:80]
+                        "skill": str(t.get("skill", ""))[:80],
+                        "estimated_hours": int(t.get("estimated_hours", 2)) if isinstance(t.get("estimated_hours", 2), (int, float)) else 2
                     })
             if tasks:
                 out.append({
                     "week": int(w["week"]) if isinstance(w["week"], (int, float)) else len(out) + 1,
                     "theme": str(w.get("theme", ""))[:100],
+                    "goal": str(w.get("goal", w.get("theme", "")))[:150],
                     "tasks": tasks[:5]
                 })
     if len(out) < 1:
@@ -622,7 +646,9 @@ def jobs_insights(uid: int = Depends(auth.current_user)):
     with db.engine.connect() as c:
         rows = c.execute(select(t_job).where(t_job.c.user_id == uid)).fetchall()
     if not rows:
-        return {"total": 0, "insights": [], "role_stats": [], "status_counts": {}}
+        return {"total": 0, "responses": 0, "eligible": False,
+                "empty_text": "Add at least 5 applications to see insights. You have 0 so far.",
+                "insights": [], "role_stats": [], "status_counts": {}}
 
     apps = [dict(r._mapping) for r in rows]
     total = len(apps)
@@ -633,19 +659,38 @@ def jobs_insights(uid: int = Depends(auth.current_user)):
         s = a.get("status", "Applied")
         status_counts[s] = status_counts.get(s, 0) + 1
 
-    # Group by role keyword and calculate response rate
-    # "Response" means Interview, Offer, or Rejected (not still at Applied or Withdrawn)
+    responded_statuses = {"Interview", "Offer", "Rejected", "Shortlisted"}
+    responded = sum(1 for a in apps if a.get("status") in responded_statuses)
+    if total < 5:
+        return {"total": total, "responses": responded, "eligible": False,
+                "empty_text": f"Add at least 5 applications to see insights. You have {total} so far.",
+                "insights": [], "role_stats": [], "status_counts": status_counts,
+                "role_type_stats": [], "domain_stats": [], "channel_stats": []}
+    if responded < 2:
+        return {"total": total, "responses": responded, "eligible": False,
+                "empty_text": "No responses yet. Insights appear once you hear back from at least 2.",
+                "insights": [], "role_stats": [], "status_counts": status_counts,
+                "role_type_stats": [], "domain_stats": [], "channel_stats": []}
+
+    def role_category(role_title):
+        title = role_title.lower()
+        if any(word in title for word in ("ai", "machine learning", "ml ", "deep learning", "data scientist")):
+            return "AI/ML"
+        if any(word in title for word in ("data", "analyst", "analytics", "bi ", "business intelligence")):
+            return "Data"
+        if any(word in title for word in ("backend", "back end", "server", "api")):
+            return "Backend"
+        if any(word in title for word in ("web", "frontend", "front end", "react", "full stack", "fullstack")):
+            return "Web"
+        return "Other"
+
     role_groups = {}
     for a in apps:
-        role = a.get("role", "").strip()
-        # Normalize: take the main role keyword (first 2-3 words)
-        words = role.lower().split()
-        key = " ".join(words[:3]) if len(words) > 3 else role.lower()
-        if key not in role_groups:
-            role_groups[key] = {"role": role, "total": 0, "responded": 0}
-        role_groups[key]["total"] += 1
-        if a.get("status") in ("Interview", "Offer", "Rejected"):
-            role_groups[key]["responded"] += 1
+        category = role_category(a.get("role", "").strip())
+        group = role_groups.setdefault(category, {"role": category, "total": 0, "responded": 0})
+        group["total"] += 1
+        if a.get("status") in responded_statuses:
+            group["responded"] += 1
 
     role_stats = []
     for key, g in sorted(role_groups.items(), key=lambda x: x[1]["total"], reverse=True):
@@ -666,7 +711,7 @@ def jobs_insights(uid: int = Depends(auth.current_user)):
                 continue
             group = groups.setdefault(key, {"label": str(a.get(field)).strip(), "applied": 0, "responded": 0})
             group["applied"] += 1
-            if a.get("status") in ("Interview", "Offer", "Rejected"):
+            if a.get("status") in responded_statuses:
                 group["responded"] += 1
         dimensions[label] = [
             {"label": g["label"], "applied": g["applied"], "responded": g["responded"],
@@ -674,27 +719,20 @@ def jobs_insights(uid: int = Depends(auth.current_user)):
             for g in sorted(groups.values(), key=lambda x: x["applied"], reverse=True)
         ]
 
-    # Generate insights
-    insights = []
-    responded = status_counts.get("Interview", 0) + status_counts.get("Offer", 0)
-    overall_rate = round(responded / total * 100) if total else 0
-    insights.append(f"Overall response rate: {overall_rate}% ({responded} of {total} applications)")
+    insights = [f"Overall response rate: {round(responded / total * 100)}% ({responded} of {total} applications)"]
+    best = max(role_stats, key=lambda x: (x["response_rate"], x["applied"]))
+    insights.append(
+        f"Best-performing role type: {best['role']} with {best['response_rate']}% "
+        f"response rate ({best['responded']} of {best['applied']} applications)."
+    )
+    for group in role_stats:
+        if group["responded"] == 0 and group["applied"] >= 3:
+            insights.append(
+                f"{group['role']} has 0 responses after {group['applied']} applications."
+            )
 
-    if role_stats:
-        best = max(role_stats, key=lambda x: x["response_rate"])
-        if best["applied"] >= 2:
-            insights.append(f"Best performing role type: '{best['role']}' with {best['response_rate']}% response rate")
-        worst = min((r for r in role_stats if r["applied"] >= 2), key=lambda x: x["response_rate"], default=None)
-        if worst and worst["role"] != best["role"]:
-            insights.append(f"Lowest response role type: '{worst['role']}' with {worst['response_rate']}% response rate")
-
-    offers = status_counts.get("Offer", 0)
-    if offers:
-        insights.append(f"You have received {offers} offer{'s' if offers > 1 else ''}. Congratulations!")
-    if total >= 5 and overall_rate < 20:
-        insights.append("Tip: Consider tailoring your resume more closely to each role's job description.")
-
-    return {"total": total, "status_counts": status_counts, "role_stats": role_stats[:20],
+    return {"total": total, "responses": responded, "eligible": True,
+            "status_counts": status_counts, "role_stats": role_stats[:20],
             "role_type_stats": dimensions.get("role_type", []),
             "domain_stats": dimensions.get("domain", []),
             "channel_stats": dimensions.get("channel", []),

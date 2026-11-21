@@ -1,6 +1,7 @@
 :root{--bg:#E9EFEC;--panel:#DCE5E1;--line:#C3CEC9;--ink:#111315;--mute:#56625D;--acc:#0E7A57;--on:#F4F8F6;--err:#B3402E;--r:5px;--fs:15px}
 [data-theme=dark]{--bg:#111315;--panel:#1B2020;--line:#2B3331;--ink:#DCE5E1;--mute:#899792;--acc:#57E6B1;--on:#111315;--err:#F08A75}
 [hidden]{display:none!important}
+.err{color:var(--err)}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%}
 body{font:var(--fs)/1.55 'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}

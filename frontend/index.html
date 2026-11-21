@@ -97,16 +97,18 @@
       <div class="chips" id="chips"></div>
       <div class="msgs" id="m-coach"></div>
       <div class="composer"><button class="btn ghost sq" data-dic="i-coach" aria-label="Dictate"><i class="ph ph-microphone"></i></button><textarea id="i-coach" placeholder="Type or dictate your answer"></textarea><button class="btn" id="s-coach"><i class="ph ph-paper-plane-tilt"></i>Send</button></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn" id="coach-start"><i class="ph ph-play"></i>Start interview</button><button type="button" class="btn ghost" id="coach-replay"><i class="ph ph-speaker-high"></i>Replay question</button><button type="button" class="btn ghost" id="coach-speaker" aria-pressed="true">Speaker on</button></div>
     </div>
     <div class="cfg">
       <h3>Interview setup</h3>
       <div><label class="lbl" for="c-round">Round type</label><select id="c-round"><option>Mixed</option><option>Behavioral</option><option>Technical</option><option>HR and salary</option><option>Situational</option></select></div>
-      <div><label class="lbl" for="c-level">Level</label><select id="c-level"><option>Easy</option><option>Standard</option><option>Hard</option></select></div>
+      <div><label class="lbl" for="c-level">Level</label><select id="c-level"><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
       <div><label class="lbl" for="c-lang">Language</label><select id="c-lang"><option>English</option><option>Hinglish</option></select></div>
       <div><label class="lbl" for="c-basis">Interview is based on</label><textarea id="c-basis" style="min-height:90px" placeholder="Paste a job description, company, topics or panel notes"></textarea></div>
       <label class="btn ghost" style="justify-content:center"><i class="ph ph-paperclip"></i>Attach files<input type="file" multiple accept=".pdf,.txt" hidden id="c-file"></label>
       <div id="c-files" style="display:grid;gap:6px"></div>
       <label class="sm"><input type="checkbox" id="c-res"> Use my resume from Profile</label>
+      <label class="sm"><input type="checkbox" id="c-feedback"> Show feedback after each answer</label>
       <button type="button" class="btn ghost" id="sc-go" style="justify-content:center"><i class="ph ph-list-checks"></i>Finish and get scorecard</button>
       <h3 style="margin-top:18px">Saved scorecards</h3>
       <div id="score-history"></div>
@@ -117,8 +119,9 @@
 <section class="view" id="v-analyzer">
   <h1>Resume match</h1><p class="sub">Compare your resume with one job description. Type, paste, upload a file or dictate by voice.</p>
   <div class="grid2">
-    <div><label class="lbl">Resume</label><textarea id="resume"></textarea><div style="display:flex;gap:8px;margin-top:8px"><label class="btn ghost"><i class="ph ph-upload-simple"></i>Upload<input type="file" accept=".pdf,.txt" hidden data-t="resume"></label><button class="btn ghost" data-dic="resume"><i class="ph ph-microphone"></i>Dictate</button></div></div>
-    <div><label class="lbl">Job description</label><textarea id="jd"></textarea><label class="lbl" for="jd-url" style="margin-top:8px">Or job description URL</label><input type="url" id="jd-url" placeholder="https://..."><div style="display:flex;gap:8px;margin-top:8px"><label class="btn ghost"><i class="ph ph-upload-simple"></i>Upload<input type="file" accept=".pdf,.txt" hidden data-t="jd"></label><button class="btn ghost" data-dic="jd"><i class="ph ph-microphone"></i>Dictate</button></div></div>
+    <div><label class="lbl" for="resume">Resume *</label><textarea id="resume" aria-required="true"></textarea><p class="sm err" id="resume-error" style="min-height:18px"></p><div style="display:flex;gap:8px;margin-top:8px"><label class="btn ghost"><i class="ph ph-upload-simple"></i>Upload<input type="file" accept=".pdf,.txt" hidden data-t="resume"></label><button class="btn ghost" data-dic="resume"><i class="ph ph-microphone"></i>Dictate</button></div></div>
+    <div><label class="lbl" for="jd">Job description *</label><textarea id="jd" aria-required="true"></textarea><p class="sm err" id="jd-error" style="min-height:18px"></p><label class="lbl" for="jd-url" style="margin-top:8px">Or job description URL</label><input type="url" id="jd-url" placeholder="https://..."><div style="display:flex;gap:8px;margin-top:8px"><label class="btn ghost"><i class="ph ph-upload-simple"></i>Upload<input type="file" accept=".pdf,.txt" hidden data-t="jd"></label><button class="btn ghost" data-dic="jd"><i class="ph ph-microphone"></i>Dictate</button></div></div>
+    <div class="full"><label class="lbl" for="rm-target">Target role *</label><input type="text" id="rm-target" list="target-role-suggestions" aria-required="true" placeholder="Example: AI/ML Engineer"><datalist id="target-role-suggestions"><option value="AI/ML Engineer"><option value="Data Analyst"><option value="Web Developer"></datalist><p class="sm err" id="target-error" style="min-height:18px"></p><p class="sm mute">* required</p></div>
   </div>
   <button class="btn" id="analyze" style="margin:18px 0"><i class="ph ph-scales"></i>Run analysis</button>
   <div id="aout"></div>
@@ -136,7 +139,7 @@
   <div class="box"><div class="grid2">
     <div><label class="lbl" for="jc">Company</label><input type="text" id="jc" maxlength="120"></div>
     <div><label class="lbl" for="jr">Role</label><input type="text" id="jr" maxlength="120"></div>
-    <div><label class="lbl" for="js">Status</label><select id="js"><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select></div>
+    <div><label class="lbl" for="js">Status</label><select id="js"><option>Applied</option><option>Shortlisted</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="lbl" for="ja">Applied on</label><input type="date" id="ja"></div><div><label class="lbl" for="ji">Interview on</label><input type="date" id="ji"></div></div>
     <div><label class="lbl" for="jrt">Role type</label><input type="text" id="jrt" maxlength="80" placeholder="Example: Engineering"></div>
     <div><label class="lbl" for="jdomain">Company domain</label><input type="text" id="jdomain" maxlength="80" placeholder="Example: Fintech"></div>
@@ -144,7 +147,7 @@
     <div><label class="lbl" for="jrdate">Response date</label><input type="date" id="jrdate"></div>
     <div class="full"><label class="lbl" for="jn">Notes</label><textarea id="jn" maxlength="1000" style="min-height:70px"></textarea></div></div>
     <div style="display:flex;gap:10px;margin-top:12px"><button type="button" class="btn" id="jsave">Add application</button><button type="button" class="btn ghost" id="jcancel" hidden>Cancel edit</button></div></div>
-  <div style="display:flex;gap:10px;margin:18px 0 6px;flex-wrap:wrap"><select id="jf" aria-label="Filter by status" style="width:auto"><option value="">All statuses</option><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><select id="jo" aria-label="Sort" style="width:auto"><option value="n">Newest first</option><option value="i">Interview date</option></select></div>
+  <div style="display:flex;gap:10px;margin:18px 0 6px;flex-wrap:wrap"><select id="jf" aria-label="Filter by status" style="width:auto"><option value="">All statuses</option><option>Applied</option><option>Shortlisted</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><select id="jo" aria-label="Sort" style="width:auto"><option value="n">Newest first</option><option value="i">Interview date</option></select></div>
   <table><thead><tr><th>Company and role</th><th>Status</th><th>Applied</th><th>Interview</th><th></th></tr></thead><tbody id="jlist"></tbody></table>
   <div class="sec"><h2>Insights: which roles get responses?</h2><p class="sub" style="margin-top:6px">Track enough applications and patterns will appear here.</p><div id="j-insights"></div></div>
 </section>
@@ -188,7 +191,7 @@
   <h1>Knowledge base</h1><p class="sub">Add your resume, notes or company documents and ask questions about them. Every chat is saved.</p>
   <div class="ws two">
     <div class="hl"><button class="btn" id="nc-kb"><i class="ph ph-plus"></i>New chat</button><input type="text" id="hq-kb" placeholder="Search chats" aria-label="Search chats"><div id="hl-kb"></div>
-      <h3 style="margin-top:10px">Documents</h3><label class="btn ghost" style="justify-content:center"><i class="ph ph-upload-simple"></i>Add<input type="file" multiple accept=".pdf" hidden id="kbfile"></label><div id="kbd" style="display:grid;gap:6px"></div><button class="btn ghost" id="kbclear" style="justify-content:center">Remove all documents</button><p class="sm mute">PDF files only.</p></div>
+      <h3 style="margin-top:10px">Documents</h3><label class="btn ghost" style="justify-content:center"><i class="ph ph-upload-simple"></i>Add<input type="file" multiple accept=".pdf" hidden id="kbfile"></label><div id="kbd" style="display:grid;gap:6px"></div><button class="btn ghost" id="kbclear" style="justify-content:center">Remove all documents</button><div class="chips" id="kb-suggestions" style="margin-top:10px"></div><p class="sm mute">PDF files only.</p></div>
     <div class="chat"><div class="msgs" id="m-kb"></div><div class="composer"><button class="btn ghost sq" data-dic="i-kb" aria-label="Dictate"><i class="ph ph-microphone"></i></button><textarea id="i-kb" placeholder="Example: Which jobs can I apply for with this resume?"></textarea><button class="btn" id="s-kb"><i class="ph ph-paper-plane-tilt"></i>Ask</button></div></div>
   </div>
 </section>
@@ -211,7 +214,7 @@
     <div><label class="lbl">Text size</label><select data-cf="size"><option value="14">Small</option><option value="15">Medium</option><option value="17">Large</option></select></div>
     <div class="full sec"><h2>Interview defaults</h2></div>
     <div><label class="lbl">Round type</label><select data-cf="round"><option>Mixed</option><option>Behavioral</option><option>Technical</option><option>HR and salary</option><option>Situational</option></select></div>
-    <div><label class="lbl">Level</label><select data-cf="level"><option>Easy</option><option>Standard</option><option>Hard</option></select></div>
+    <div><label class="lbl">Level</label><select data-cf="level"><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
     <div class="full sec"><h2>Voice</h2></div>
     <div><label class="lbl">Interviewer voice</label><select data-cf="voice" id="voice"></select></div>
     <div><label class="lbl">Speaking speed</label><select data-cf="rate"><option value="0.9">Slow</option><option value="1">Normal</option><option value="1.15">Fast</option></select></div>

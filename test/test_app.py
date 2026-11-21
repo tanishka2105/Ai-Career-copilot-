@@ -151,18 +151,42 @@ def test_progress_adjustment_moves_behind_and_ahead(client, user):
 
 def test_application_response_insights_include_channel_and_domain(client, user):
     h = user()
-    client.post("/api/jobs", headers=h, json={
-        "company": "Acme",
-        "role": "Backend Engineer",
-        "role_type": "Engineering",
-        "domain": "Fintech",
-        "channel": "Referral",
-        "status": "Interview",
-    })
+    for i in range(5):
+        client.post("/api/jobs", headers=h, json={
+            "company": f"Acme{i}",
+            "role": "Backend Engineer",
+            "role_type": "Engineering",
+            "domain": "Fintech",
+            "channel": "Referral",
+            "status": "Interview" if i < 2 else "Applied",
+        })
     insights = client.get("/api/jobs/insights", headers=h).json()
     assert insights["role_type_stats"][0]["label"] == "Engineering"
     assert insights["domain_stats"][0]["label"] == "Fintech"
     assert insights["channel_stats"][0]["label"] == "Referral"
+
+
+def test_application_insight_empty_states(client, user):
+    h = user()
+    empty = client.get("/api/jobs/insights", headers=h).json()
+    assert empty["eligible"] is False
+    assert "0" in empty["empty_text"]
+
+    for i in range(3):
+        client.post("/api/jobs", headers=h, json={"company": f"C{i}", "role": "Web Developer", "status": "Applied"})
+    below_five = client.get("/api/jobs/insights", headers=h).json()
+    assert below_five["eligible"] is False
+    assert "You have 3 so far" in below_five["empty_text"]
+
+    for i in range(2):
+        client.post("/api/jobs", headers=h, json={"company": f"D{i}", "role": "Data Analyst", "status": "Applied"})
+    no_response = client.get("/api/jobs/insights", headers=h).json()
+    assert no_response["eligible"] is False
+    assert "No responses yet" in no_response["empty_text"]
+
+    client.put("/api/jobs/1", headers=h, json={"company": "C0", "role": "Web Developer", "status": "Interview"})
+    one_response = client.get("/api/jobs/insights", headers=h).json()
+    assert one_response["eligible"] is False
 
 
 def test_weekly_plan_and_portfolio_end_to_end(client, user, monkeypatch):
@@ -170,7 +194,7 @@ def test_weekly_plan_and_portfolio_end_to_end(client, user, monkeypatch):
     monkeypatch.setattr(features, "ask_llm", lambda p:
         '[{"week":1,"theme":"SQL","tasks":[{"task":"Build joins","resource":"SQL tutorial","skill":"SQL"}]}]'
         if "Create a 4-week learning plan" in p
-        else '[{"title":"SQL Dashboard","description":"Build a report","skills_covered":["SQL"],"difficulty":"Intermediate","duration":"1 week"},{"title":"SQL Quality Check","description":"Build data tests","skills_covered":["SQL"],"difficulty":"Beginner","duration":"1 week"}]')
+        else '[{"title":"SQL Dashboard","description":"Build a report","skills_covered":["SQL"],"difficulty":"Intermediate","duration":"1 week"},{"title":"SQL Quality Check","description":"Build data tests","skills_covered":["SQL"],"difficulty":"Beginner","duration":"1 week"},{"title":"SQL API","description":"Build SQL API","skills_covered":["SQL"],"difficulty":"Intermediate","duration":"1 week"}]')
     plan = client.post("/api/weekly-plan", headers=h, json={
         "target_role": "Data Analyst",
         "gaps": ["SQL"],

@@ -22,12 +22,15 @@ def top_chunks(question, chunks, k=3):
         return chunks[:k]
     scores = cosine_similarity(matrix[-1], matrix[:-1]).flatten()
     best = scores.argsort()[::-1][:k]
-    return [chunks[i] for i in best if scores[i] > 0]
+    if len(best) == 0:
+        return []
+    return [chunks[int(i)] for i in best[:k]]
 
 
 def answer(question, context_chunks):
     context = "\n---\n".join(context_chunks)
-    prompt = ("Answer only from the context below. If the answer is not in the context, "
-              "say: This information was not found in the documents.\n\n"
-              f"CONTEXT:\n{context}\n\nQUESTION: {question}")
+    prompt = ("Answer only from the provided document text. Use simple, clear language. "
+              "Summarize the document or answer the question directly. "
+              'Say "I could not find this in the document" only when the provided text truly does not contain it.\n\n'
+              f"DOCUMENT TEXT:\n{context}\n\nQUESTION: {question}")
     return ask_llm(prompt)
