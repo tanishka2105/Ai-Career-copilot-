@@ -32,7 +32,7 @@ async function api(path,o={}){
 function wipeLocal(){
   try{Object.keys(localStorage).filter(k=>k==='tok'||k==='st'||k==='prof'||k.startsWith('cfg_')).forEach(k=>localStorage.removeItem(k))}catch{}
   tok='';st={chats:[],cur:{},bm:[],plan:{},an:[],docs:[],resume:'',match:null,skills:[],gaps:[],skillMastery:{},analyzed:false,answers:0,log:[],weeklyPlan:null,projects:[],scorecards:[]};P={};cur.coach=null;cur.kb=null;JOBS=[];$('#sc-out').innerHTML='';
-  $$('#pform input,#pform select,#pform textarea,#resume,#jd,#c-basis').forEach(e=>e.value='');$('#aout').innerHTML='';$('#pres-s').textContent='';
+  $$('#pform input,#pform select,#pform textarea,#resume,#jd,#jd-url,#c-basis').forEach(e=>e.value='');$('#aout').innerHTML='';$('#pres-s').textContent='';
 }
 const jpost=(p,b,o={})=>api(p,Object.assign({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)},o));
 async function readFile(f){if(f.size>5*1024*1024)throw new Error('File is too large. The limit is 5 MB.');if(/\.txt$/i.test(f.name))return f.text();const fd=new FormData();fd.append('file',f);return (await api('/api/extract',{method:'POST',body:fd})).text}
@@ -71,7 +71,7 @@ async function initGoogle(){try{const c=await (await fetch('/api/config')).json(
   google.accounts.id.initialize({client_id:c.google_client_id,callback:async r=>{try{const j=await jpost('/api/google',{credential:r.credential},{noauth:true,retry:true});await enter(j.token)}catch(e){$('#a-err').textContent=e.message}}});
   window._g=true}catch{}}
 async function boot2(){try{$('#acct').textContent=(await api('/api/me')).username}catch{return}
-  await Promise.all([loadChats(),loadDocs(),loadState(),loadProgress(),loadScorecards()]);save();draw('coach');draw('kb')}
+  await Promise.all([loadChats(),loadDocs(),loadState(),loadProgress(),loadScorecards(),loadCareerProgress()]);save();draw('coach');draw('kb')}
 async function loadState(){try{const s=await api('/api/state');
   if(s.profile){P=s.profile;S.set('prof',P);PF.forEach(([k])=>{const e=$('#p_'+k);if(e)e.value=P[k]||''})}else if(Object.keys(P).length)sync('profile',P);
   if(s.plan)st.plan=s.plan;if(s.bm)st.bm=s.bm;
@@ -83,6 +83,12 @@ async function loadState(){try{const s=await api('/api/state');
   lastSync={profile:JSON.stringify(P),plan:JSON.stringify(st.plan),bm:JSON.stringify(st.bm),resume:JSON.stringify(st.resume),weekly:JSON.stringify(st.weeklyPlan),projects:JSON.stringify(st.projects),plan_adjustment:JSON.stringify(st.planAdjustment),skill_mastery:JSON.stringify(st.skillMastery)}}catch{}}
 async function loadProgress(){try{st.prog=await api('/api/progress');st.answers=st.prog.total}catch{}}
 async function loadScorecards(){try{const r=await api('/api/scorecards');st.scorecards=r.scorecards||[]}catch{}}
+async function loadCareerProgress(){try{
+  const intake=await api('/api/intake');if(intake.intake){st.analyzed=true;st.resume=intake.intake.resume_text||st.resume;st.match=intake.intake.result?.score??null;st.skills=intake.intake.result?.skill_gap_map||[];st.gaps=intake.intake.result?.gaps||[]}
+  const roadmap=await api('/api/weekly-plan');if(roadmap.roadmap)st.weeklyPlan=roadmap.roadmap.result;
+  const portfolio=await api('/api/portfolio');if(portfolio.portfolio)st.projects=portfolio.portfolio.result.projects||[];
+  const skills=await api('/api/skills');st.skillMastery=skills.skills||{};
+}catch{}}
 async function loadChats(){try{st.chats=await api('/api/sessions');
   const latest=st.chats.find(x=>x.type==='analysis');
   if(latest){st.analyzed=true;st.match=latest.result?.score??latest.result?.match_score??null;st.skills=latest.result?.skill_gap_map||[];st.gaps=latest.result?.gaps||[]}
@@ -183,9 +189,13 @@ function item(o){const ks=Object.keys(o),qk=ks.find(k=>/^(question|q|title|name)
 function showResult(r){const K=['score','match_score','match','match_percentage'],k=K.find(x=>r[x]!=null),sc=k?r[k]:null,rest={...r};K.forEach(x=>delete rest[x]);delete rest.summary;
   return `<div class="box" style="display:flex;gap:22px;align-items:center"><b style="font-family:Fraunces,serif;font-size:52px;color:var(--acc)">${sc!=null?esc(typeof sc==='number'&&sc<=100?sc+'%':sc):'Result'}</b><p>${esc(r.summary||'Match between your resume and this job description.')}</p></div>`+Object.entries(rest).map(([k,v])=>`<h2 style="margin:22px 0 6px;text-transform:capitalize">${esc(k.replace(/_/g,' '))}</h2>${gen(v)}`).join('')}
 $('#analyze').onclick=async()=>{const resume=$('#resume').value.trim(),jd=$('#jd').value.trim(),o=$('#aout');
-  if(!resume||!jd){toast('Add both a resume and a job description.');return}
+  const jdUrl=$('#jd-url').value.trim();
+  if(!resume){toast('Add your resume.');return}
+  if(!jd&&!jdUrl){toast('Add a job description or URL.');return}
+  if(!P.target){toast('Add a target role in Profile first.');return}
   o.innerHTML='<div class="box">'+skel(7)+'</div>';$('#analyze').disabled=true;
   try{const fd=new FormData();fd.append('resume_text',resume);fd.append('jd',jd);
+    fd.append('jd_url',jdUrl);fd.append('target_role',P.target||'');fd.append('experience',P.exp||'');fd.append('timeline',P.date||'');
     const r=await api('/api/analyze',{method:'POST',body:fd});
     st.resume=resume;st.analyzed=true;const K=['score','match_score','match','match_percentage'].find(x=>r[x]!=null);st.match=K&&typeof r[K]==='number'?r[K]:null;
     st.skills=Array.isArray(r.skill_gap_map)?r.skill_gap_map.slice(0,12):[];
@@ -242,7 +252,7 @@ async function adjustPlan(){
   const latest=st.scorecards.length?st.scorecards[0].result?.average||0:0;
   const struggling=(lastAn()?.skill_gap_map||[]).filter(x=>x.gap_severity==='High'||x.gap_severity==='Critical').map(x=>x.skill);
   try{
-    const r=await jpost('/api/progress/adjust',{total_tasks:totalTasks,completed_tasks:completed,planned_weeks:planned,latest_score:latest,struggling_skills:struggling});
+    const r=await jpost('/api/progress/adjust',{total_tasks:totalTasks,completed_tasks:completed,planned_weeks:planned,latest_score:latest,struggling_skills:struggling,skill_mastery:st.skillMastery||{}});
     st.planAdjustment=r;
     save(false);
   }catch{}
@@ -334,7 +344,7 @@ function render(){
 }
 $('#bars').onchange=e=>{
   const name=e.target.dataset.mastery;
-  if(name!==undefined){st.skillMastery[name]=e.target.value;save();adjustPlan()}
+  if(name!==undefined){st.skillMastery[name]=e.target.value;save();jpost('/api/skills/'+encodeURIComponent(name),{mastery:e.target.value}).catch(err=>toast(err.message));adjustPlan()}
 };
 
 function drawChart(){const d=(st.prog&&st.prog.days)||[];

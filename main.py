@@ -2,7 +2,14 @@ import json
 import os
 import re
 import time
+import html
+import ipaddress
+import socket
 from collections import defaultdict, deque
+from urllib.parse import urlparse
+from html.parser import HTMLParser
+
+import requests
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.staticfiles import StaticFiles
@@ -49,6 +56,48 @@ def check_pdf(f):
     f.file.seek(0, 2)
     size = f.file.tell()
     f.file.seek(0)
+    if size > MAX_FILE:
+        raise HTTPException(413, "File is too large. The limit is 5 MB.")
+    if f.file.read(5) != b"%PDF-":
+        raise HTTPException(400, "This file is not a valid PDF")
+    f.file.seek(0)
+
+
+class _TextParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.parts = []
+
+    def handle_data(self, data):
+        clean = " ".join(data.split())
+        if clean:
+            self.parts.append(clean)
+
+
+def fetch_job_description(url):
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise HTTPException(400, "Job description URL must start with http:// or https://")
+    try:
+        addresses = {socket.gethostbyname(parsed.hostname)}
+    except Exception:
+        raise HTTPException(400, "Could not resolve the job description URL")
+    if any(ipaddress.ip_address(address).is_private or ipaddress.ip_address(address).is_loopback
+           or ipaddress.ip_address(address).is_link_local for address in addresses):
+        raise HTTPException(400, "Private or local job description URLs are not allowed")
+    try:
+        response = requests.get(url, timeout=12, headers={"User-Agent": "Ascendra-Career-Pivot-Coach/1.0"})
+        response.raise_for_status()
+    except requests.RequestException:
+        raise HTTPException(502, "Could not load the job description URL")
+    content_type = response.headers.get("content-type", "").lower()
+    if "text/html" not in content_type and "text/plain" not in content_type:
+        raise HTTPException(400, "The job description URL did not return readable text")
+    parser = _TextParser()
+    parser.feed(response.text)
+    return html.unescape(" ".join(parser.parts))[:12000]
     if size > MAX_FILE:
         raise HTTPException(413, "File is too large. The limit is 5 MB.")
     if f.file.read(5) != b"%PDF-":
@@ -149,14 +198,26 @@ def me(uid: int = Depends(auth.current_user)):
 
 @app.post("/api/analyze")
 def analyze_resume(resume: UploadFile | None = File(None), resume_text: str = Form(""),
-                   jd: str = Form(...), uid: int = Depends(auth.current_user)):
+                   jd: str = Form(""), jd_url: str = Form(""), target_role: str = Form(""),
+                   experience: str = Form(""), timeline: str = Form(""),
+                   uid: int = Depends(auth.current_user)):
     if resume is not None and resume.filename:
         if not resume.filename.lower().endswith(".pdf"):
             raise HTTPException(400, "Upload a PDF, or paste the resume text")
         check_pdf(resume)
-        text, title = extract_text(resume.file), resume.filename
+        try:
+            text, title = extract_text(resume.file), resume.filename
+        except Exception:
+            raise HTTPException(400, "This PDF could not be read. Upload a text-based PDF or paste the resume")
     else:
         text, title = resume_text, "Pasted resume"
+    if jd_url:
+        fetched = fetch_job_description(jd_url)
+        jd = (jd.strip() + "\n\n" + fetched.strip()).strip() if jd.strip() else fetched
+    if len(jd.strip()) < 30:
+        raise HTTPException(400, "Paste a job description or provide a readable job description URL")
+    if not target_role.strip():
+        raise HTTPException(400, "Target role is required")
     if len(text) > 30000 or len(jd) > 12000:
         raise HTTPException(400, "Text is too long. Shorten the resume or job description.")
     if len(text.strip()) < 50:
@@ -166,7 +227,12 @@ def analyze_resume(resume: UploadFile | None = File(None), resume_text: str = Fo
     except Exception as e:
         print("Analyze error:", repr(e))
         raise HTTPException(502, "The AI did not respond, please try again")
+    result["target_role"] = target_role.strip()
+    result["experience"] = experience.strip()
+    result["timeline"] = timeline.strip()
     db.add_history(uid, title, json.dumps(result))
+    db.add_career_intake(uid, target_role.strip(), experience.strip(), timeline.strip(),
+                         title, text, jd, jd_url.strip(), json.dumps(result))
     return result
 
 
@@ -181,7 +247,10 @@ def upload_doc(doc: UploadFile = File(...), uid: int = Depends(auth.current_user
     if not (doc.filename or "").lower().endswith(".pdf"):
         raise HTTPException(400, "Upload a PDF file")
     check_pdf(doc)
-    chunks = rag.chunk_text(extract_text(doc.file))
+    try:
+        chunks = rag.chunk_text(extract_text(doc.file))
+    except Exception:
+        raise HTTPException(400, "This PDF could not be read. Upload a text-based PDF")
     if not chunks:
         raise HTTPException(400, "No text could be read from this PDF")
     db.add_chunks(uid, doc.filename, chunks)
@@ -316,7 +385,10 @@ def extract(file: UploadFile = File(...), uid: int = Depends(auth.current_user))
     name = (file.filename or "").lower()
     if name.endswith(".pdf"):
         check_pdf(file)
-        text = extract_text(file.file)
+        try:
+            text = extract_text(file.file)
+        except Exception:
+            raise HTTPException(400, "This PDF could not be read. Upload a text-based PDF or TXT file")
     elif name.endswith(".txt"):
         raw = file.file.read(MAX_FILE + 1)
         if len(raw) > MAX_FILE:

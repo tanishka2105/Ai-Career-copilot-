@@ -203,3 +203,45 @@ def test_saved_state_accepts_pipeline_objects(client, user):
     assert state["weekly"]["weeks"][0]["theme"] == "SQL"
     assert state["projects"][0]["title"] == "Dashboard"
     assert state["skill_mastery"]["SQL"] == "Learning"
+
+
+def test_skill_progress_is_saved_and_private(client, user):
+    a, b = user("nora"), user("omar")
+    r = client.put("/api/skills/SQL", headers=a, json={"mastery": "Practicing"})
+    assert r.status_code == 200
+    assert client.get("/api/skills", headers=a).json()["skills"]["SQL"] == "Practicing"
+    assert "SQL" not in client.get("/api/skills", headers=b).json()["skills"]
+
+
+def test_career_intake_persists_latest_records(client, user):
+    h = user()
+    result = {"score": 72, "gaps": ["SQL"], "skill_gap_map": [{"skill": "SQL", "gap_severity": "High"}]}
+    r = client.post("/api/intake", headers=h, json={
+        "target_role": "Data Analyst",
+        "experience": "1 to 3",
+        "timeline": "2026-12-01",
+        "resume_title": "Resume",
+        "resume_text": "Candidate worked with Python and reporting tools.",
+        "jd_text": "The role requires SQL, Python, dashboards, and stakeholder communication.",
+        "jd_url": "",
+        "result": result,
+    })
+    assert r.status_code == 200
+    latest = client.get("/api/intake", headers=h).json()["intake"]
+    assert latest["target_role"] == "Data Analyst"
+    assert latest["result"]["score"] == 72
+
+
+def test_progress_adjustment_uses_skill_mastery(client, user):
+    h = user()
+    r = client.post("/api/progress/adjust", headers=h, json={
+        "total_tasks": 10,
+        "completed_tasks": 9,
+        "planned_weeks": 4,
+        "latest_score": 8,
+        "struggling_skills": ["SQL"],
+        "skill_mastery": {"SQL": "Mastered", "Python": "Learning"},
+    })
+    assert r.status_code == 200
+    assert r.json()["status"] in ("ahead", "behind", "on_track")
+    assert "SQL" in r.json()["priorities"] or "Python" in r.json()["priorities"]

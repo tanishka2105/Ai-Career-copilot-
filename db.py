@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import (Column, DateTime, Float, Integer, LargeBinary, MetaData, String, Table, Text, inspect,
-                        create_engine, delete, func, insert, select)
+                        create_engine, delete, func, insert, select, update)
 from sqlalchemy.exc import IntegrityError
 
 load_dotenv()
@@ -55,6 +55,40 @@ scorecards = Table("interview_scorecards", meta,
                    Column("count", Integer, nullable=False),
                    Column("result", Text, nullable=False),
                    Column("created_at", DateTime, server_default=func.now()))
+
+career_intakes = Table("career_intakes", meta,
+                       Column("id", Integer, primary_key=True, autoincrement=True),
+                       Column("user_id", Integer, nullable=False, index=True),
+                       Column("target_role", String(200)),
+                       Column("experience", String(50)),
+                       Column("timeline", String(50)),
+                       Column("resume_title", String(200)),
+                       Column("resume_text", Text, nullable=False),
+                       Column("jd_text", Text, nullable=False),
+                       Column("jd_url", Text),
+                       Column("result", Text, nullable=False),
+                       Column("created_at", DateTime, server_default=func.now()))
+
+roadmaps = Table("roadmaps", meta,
+                 Column("id", Integer, primary_key=True, autoincrement=True),
+                 Column("user_id", Integer, nullable=False, index=True),
+                 Column("target_role", String(200), nullable=False),
+                 Column("weeks", Integer, nullable=False),
+                 Column("result", Text, nullable=False),
+                 Column("created_at", DateTime, server_default=func.now()))
+
+portfolio_projects = Table("portfolio_projects", meta,
+                           Column("id", Integer, primary_key=True, autoincrement=True),
+                           Column("user_id", Integer, nullable=False, index=True),
+                           Column("target_role", String(200), nullable=False),
+                           Column("result", Text, nullable=False),
+                           Column("created_at", DateTime, server_default=func.now()))
+
+skill_progress = Table("skill_progress", meta,
+                       Column("user_id", Integer, primary_key=True),
+                       Column("skill", String(80), primary_key=True),
+                       Column("mastery", String(20), nullable=False),
+                       Column("updated_at", DateTime, server_default=func.now()))
 
 
 def init_db():
@@ -186,6 +220,94 @@ def get_scorecards(user_id, limit=20):
         r.pop("average", None)
         r.pop("user_id", None)
     return rows
+
+
+def add_career_intake(user_id, target_role, experience, timeline, resume_title, resume_text, jd_text, jd_url, result):
+    with engine.begin() as c:
+        c.execute(insert(career_intakes).values(
+            user_id=user_id, target_role=target_role, experience=experience, timeline=timeline,
+            resume_title=resume_title, resume_text=resume_text, jd_text=jd_text,
+            jd_url=jd_url, result=result,
+        ))
+
+
+def get_latest_career_intake(user_id):
+    q = select(career_intakes).where(career_intakes.c.user_id == user_id).order_by(career_intakes.c.id.desc()).limit(1)
+    with engine.connect() as c:
+        row = c.execute(q).fetchone()
+    if not row:
+        return None
+    r = dict(row._mapping)
+    r.pop("user_id", None)
+    r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
+    r["result"] = json.loads(r["result"])
+    return r
+
+
+def save_roadmap(user_id, target_role, weeks, result):
+    with engine.begin() as c:
+        c.execute(insert(roadmaps).values(
+            user_id=user_id, target_role=target_role, weeks=weeks, result=result,
+        ))
+
+
+def get_latest_roadmap(user_id):
+    q = select(roadmaps).where(roadmaps.c.user_id == user_id).order_by(roadmaps.c.id.desc()).limit(1)
+    with engine.connect() as c:
+        row = c.execute(q).fetchone()
+    if not row:
+        return None
+    r = dict(row._mapping)
+    r.pop("user_id", None)
+    r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
+    r["result"] = json.loads(r["result"])
+    return r
+
+
+def save_portfolio_projects(user_id, target_role, result):
+    with engine.begin() as c:
+        c.execute(insert(portfolio_projects).values(
+            user_id=user_id, target_role=target_role, result=result,
+        ))
+
+
+def get_latest_portfolio_projects(user_id):
+    q = select(portfolio_projects).where(portfolio_projects.c.user_id == user_id).order_by(portfolio_projects.c.id.desc()).limit(1)
+    with engine.connect() as c:
+        row = c.execute(q).fetchone()
+    if not row:
+        return None
+    r = dict(row._mapping)
+    r.pop("user_id", None)
+    r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
+    r["result"] = json.loads(r["result"])
+    return r
+
+
+def set_skill_progress(user_id, skill, mastery):
+    with engine.begin() as c:
+        row = c.execute(select(skill_progress).where(
+            skill_progress.c.user_id == user_id,
+            skill_progress.c.skill == skill,
+        )).fetchone()
+        values = {"mastery": mastery, "updated_at": func.now()}
+        if row:
+            c.execute(update(skill_progress).where(
+                skill_progress.c.user_id == user_id,
+                skill_progress.c.skill == skill,
+            ).values(**values))
+        else:
+            c.execute(insert(skill_progress).values(
+                user_id=user_id, skill=skill, mastery=mastery,
+            ))
+
+
+def get_skill_progress(user_id):
+    q = select(skill_progress.c.skill, skill_progress.c.mastery).where(
+        skill_progress.c.user_id == user_id
+    ).order_by(skill_progress.c.skill)
+    with engine.connect() as c:
+        return {skill: mastery for skill, mastery in c.execute(q)}
 
 
 def list_sessions(user_id, limit=50):

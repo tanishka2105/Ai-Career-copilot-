@@ -119,7 +119,7 @@
   <h1>Resume match</h1><p class="sub">Compare your resume with one job description. Type, paste, upload a file or dictate by voice.</p>
   <div class="grid2">
     <div><label class="lbl">Resume</label><textarea id="resume"></textarea><div style="display:flex;gap:8px;margin-top:8px"><label class="btn ghost"><i class="ph ph-upload-simple"></i>Upload<input type="file" accept=".pdf,.txt" hidden data-t="resume"></label><button class="btn ghost" data-dic="resume"><i class="ph ph-microphone"></i>Dictate</button></div></div>
-    <div><label class="lbl">Job description</label><textarea id="jd"></textarea><div style="display:flex;gap:8px;margin-top:8px"><label class="btn ghost"><i class="ph ph-upload-simple"></i>Upload<input type="file" accept=".pdf,.txt" hidden data-t="jd"></label><button class="btn ghost" data-dic="jd"><i class="ph ph-microphone"></i>Dictate</button></div></div>
+    <div><label class="lbl">Job description</label><textarea id="jd"></textarea><label class="lbl" for="jd-url" style="margin-top:8px">Or job description URL</label><input type="url" id="jd-url" placeholder="https://..."><div style="display:flex;gap:8px;margin-top:8px"><label class="btn ghost"><i class="ph ph-upload-simple"></i>Upload<input type="file" accept=".pdf,.txt" hidden data-t="jd"></label><button class="btn ghost" data-dic="jd"><i class="ph ph-microphone"></i>Dictate</button></div></div>
   </div>
   <button class="btn" id="analyze" style="margin:18px 0"><i class="ph ph-scales"></i>Run analysis</button>
   <div id="aout"></div>

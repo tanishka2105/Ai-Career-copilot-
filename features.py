@@ -52,7 +52,9 @@ def ip(request: Request):
 def purge(uid):
     """Called by account deletion."""
     with db.engine.begin() as c:
-        for t in (t_state, t_email, t_reset, t_job, db.scorecards):
+        for t in (t_state, t_email, t_reset, t_job, db.scorecards,
+                  db.career_intakes, db.roadmaps, db.portfolio_projects,
+                  db.skill_progress):
             c.execute(delete(t).where(t.c.user_id == uid))
 
 
@@ -93,16 +95,22 @@ class ProgressAdjustIn(BaseModel):
     planned_weeks: int = Field(default=4, ge=1, le=12)
     latest_score: float = Field(default=0, ge=0, le=10)
     struggling_skills: list = Field(default=[])
+    skill_mastery: dict = Field(default={})
 
 
 @router.post("/api/progress/adjust")
 def adjust_progress(p: ProgressAdjustIn, uid: int = Depends(auth.current_user)):
     progress = p.completed_tasks / p.total_tasks if p.total_tasks else 0
+    mastery = p.skill_mastery or db.get_skill_progress(uid)
+    mastered = sum(1 for value in mastery.values() if str(value).lower() == "mastered")
+    learning = [str(skill)[:80] for skill, value in mastery.items()
+                if str(value).lower() in ("not started", "learning", "practicing")]
+    weak = list(dict.fromkeys([str(x)[:80] for x in p.struggling_skills[:6]] + learning[:6]))[:6]
     if progress >= 0.8 and p.latest_score >= 7:
         adjusted = max(2, p.planned_weeks - 1)
         status = "ahead"
         note = "Progress is ahead of pace. One week was removed and priorities were preserved."
-    elif progress < 0.35 or p.latest_score < 5:
+    elif progress < 0.35 or p.latest_score < 5 or weak:
         adjusted = min(12, p.planned_weeks + 1)
         status = "behind"
         note = "Progress is behind or struggling. One week was added to focus on weak gaps."
@@ -110,9 +118,59 @@ def adjust_progress(p: ProgressAdjustIn, uid: int = Depends(auth.current_user)):
         adjusted = p.planned_weeks
         status = "on_track"
         note = "Progress is on track. Existing priorities remain in place."
-    priorities = [str(x)[:80] for x in p.struggling_skills[:6]]
+    priorities = weak
     return {"status": status, "adjusted_weeks": adjusted, "priorities": priorities,
             "note": note}
+
+
+class SkillProgressIn(BaseModel):
+    mastery: str
+
+
+@router.put("/api/skills/{skill}")
+def update_skill_progress(skill: str, body: SkillProgressIn, uid: int = Depends(auth.current_user)):
+    allowed = {"Not started", "Learning", "Practicing", "Mastered"}
+    if body.mastery not in allowed:
+        raise HTTPException(400, "Unknown mastery level")
+    clean_skill = skill.strip()[:80]
+    if not clean_skill:
+        raise HTTPException(400, "Skill is required")
+    db.set_skill_progress(uid, clean_skill, body.mastery)
+    return {"skill": clean_skill, "mastery": body.mastery}
+
+
+@router.get("/api/skills")
+def skill_progress(uid: int = Depends(auth.current_user)):
+    return {"skills": db.get_skill_progress(uid)}
+
+
+class IntakeIn(BaseModel):
+    target_role: str = Field(max_length=200)
+    experience: str = Field("", max_length=50)
+    timeline: str = Field("", max_length=50)
+    resume_title: str = Field("Pasted resume", max_length=200)
+    resume_text: str = Field(min_length=20, max_length=30000)
+    jd_text: str = Field(min_length=30, max_length=12000)
+    jd_url: str = Field("", max_length=2000)
+    result: dict
+
+
+@router.post("/api/intake")
+def save_intake(body: IntakeIn, uid: int = Depends(auth.current_user)):
+    if not body.target_role.strip():
+        raise HTTPException(400, "Target role is required")
+    db.add_career_intake(
+        uid, body.target_role.strip(), body.experience.strip(), body.timeline.strip(),
+        body.resume_title.strip() or "Pasted resume", body.resume_text,
+        body.jd_text, body.jd_url.strip(), json.dumps(body.result),
+    )
+    db.add_history(uid, body.resume_title.strip() or "Pasted resume", json.dumps(body.result))
+    return {"ok": True}
+
+
+@router.get("/api/intake")
+def latest_intake(uid: int = Depends(auth.current_user)):
+    return {"intake": db.get_latest_career_intake(uid)}
 
 
 # ---------- practice progress (only answers the user typed) ----------
@@ -393,7 +451,10 @@ def scorecard(r: ScoreReq, uid: int = Depends(auth.current_user)):
     for m in db.get_messages(r.session_id):
         if m["role"] == "assistant":
             last_q = m["content"][:600]
-        elif last_q and not m["content"].startswith(AUTO):
+        elif last_q:
+            normalized = m["content"].strip().lower()
+            if normalized.startswith(AUTO):
+                continue
             pairs.append({"question": last_q, "answer": m["content"][:1500]})
     pairs = pairs[-12:]
     if not pairs:
@@ -431,7 +492,7 @@ def scorecards(uid: int = Depends(auth.current_user)):
 
 # ---------- guest resume match (no account, limited, nothing saved) ----------
 @router.post("/api/guest/analyze")
-def guest_analyze(request: Request, resume_text: str = Form(...), jd: str = Form(...)):
+def guest_analyze(request: Request, resume_text: str = Form(...), jd: str = Form(""), jd_url: str = Form("")):
     limit("guest:" + ip(request), 3, 3600)
     limit("guest:all", 100, 3600)
     if len(resume_text) > 8000 or len(jd) > 4000:
@@ -487,7 +548,13 @@ def portfolio(r: PortfolioReq, uid: int = Depends(auth.current_user)):
             })
     if len(out) < 2:
         raise HTTPException(502, "The AI returned too few project ideas, please try again")
+    db.save_portfolio_projects(uid, r.target_role.strip(), json.dumps({"projects": out[:6]}))
     return {"projects": out[:6]}
+
+
+@router.get("/api/portfolio")
+def latest_portfolio(uid: int = Depends(auth.current_user)):
+    return {"portfolio": db.get_latest_portfolio_projects(uid)}
 
 
 # ---------- weekly learning plan (built from skill gaps) ----------
@@ -540,7 +607,13 @@ def weekly_plan(r: WeeklyPlanReq, uid: int = Depends(auth.current_user)):
                 })
     if len(out) < 1:
         raise HTTPException(502, "The AI returned an empty plan, please try again")
+    db.save_roadmap(uid, r.target_role.strip(), r.weeks, json.dumps({"weeks": out[:12]}))
     return {"weeks": out[:12]}
+
+
+@router.get("/api/weekly-plan")
+def latest_weekly_plan(uid: int = Depends(auth.current_user)):
+    return {"roadmap": db.get_latest_roadmap(uid)}
 
 
 # ---------- job tracker insights (which roles get responses) ----------
