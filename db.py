@@ -1,7 +1,8 @@
+import json
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import (Column, DateTime, Integer, LargeBinary, MetaData, String, Table, Text,
+from sqlalchemy import (Column, DateTime, Float, Integer, LargeBinary, MetaData, String, Table, Text, inspect,
                         create_engine, delete, func, insert, select)
 from sqlalchemy.exc import IntegrityError
 
@@ -46,6 +47,15 @@ messages = Table("messages", meta,
                  Column("content", Text, nullable=False),
                  Column("created_at", DateTime, server_default=func.now()))
 
+scorecards = Table("interview_scorecards", meta,
+                   Column("id", Integer, primary_key=True, autoincrement=True),
+                   Column("user_id", Integer, nullable=False, index=True),
+                   Column("session_id", Integer, nullable=False, index=True),
+                   Column("average", Float, nullable=False),
+                   Column("count", Integer, nullable=False),
+                   Column("result", Text, nullable=False),
+                   Column("created_at", DateTime, server_default=func.now()))
+
 
 def init_db():
     meta.create_all(engine)                  # tables sirf tab banti hain jab pehle se na hon
@@ -53,6 +63,12 @@ def init_db():
     print(f"[db] {name} @ {engine.url.host or 'local file'}")
     if name == "sqlite":
         print("[db] WARNING: DATABASE_URL nahi mila, local SQLite chal rahi hai. Supabase use nahi ho raha.")
+    existing = {column["name"] for column in inspect(engine).get_columns("applications")}
+    types = {"role_type": "VARCHAR(80)", "domain": "VARCHAR(80)", "channel": "VARCHAR(80)", "response_date": "VARCHAR(10)"}
+    with engine.begin() as c:
+        for column, definition in types.items():
+            if column not in existing:
+                c.exec_driver_sql(f'ALTER TABLE applications ADD COLUMN "{column}" {definition}')
 
 
 def _user(row):
@@ -143,6 +159,33 @@ def get_messages(session_id):
         rows = c.execute(select(messages.c.role, messages.c.content)
                          .where(messages.c.session_id == session_id).order_by(messages.c.id)).fetchall()
     return [{"role": r[0], "content": r[1]} for r in rows]
+
+
+def add_scorecard(user_id, session_id, average, count, result):
+    with engine.begin() as c:
+        res = c.execute(insert(scorecards).values(
+            user_id=user_id,
+            session_id=session_id,
+            average=average,
+            count=count,
+            result=result,
+        ))
+        return res.inserted_primary_key[0]
+
+
+def get_scorecards(user_id, limit=20):
+    q = (select(scorecards)
+         .where(scorecards.c.user_id == user_id)
+         .order_by(scorecards.c.id.desc())
+         .limit(limit))
+    with engine.connect() as c:
+        rows = [dict(r._mapping) for r in c.execute(q)]
+    for r in rows:
+        r["created_at"] = r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
+        r["result"] = json.loads(r["result"])
+        r.pop("average", None)
+        r.pop("user_id", None)
+    return rows
 
 
 def list_sessions(user_id, limit=50):

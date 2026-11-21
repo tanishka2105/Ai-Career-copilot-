@@ -16,7 +16,7 @@ import features
 import rag
 from analyzer import analyze, extract_text
 
-app = FastAPI(title="AI Career Copilot")
+app = FastAPI(title="Ascendra - Career Pivot Coach")
 db.init_db()
 app.include_router(features.router)
 

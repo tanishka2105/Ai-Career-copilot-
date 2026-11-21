@@ -1,12 +1,12 @@
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const S={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let st=Object.assign({chats:[],cur:{},bm:[],plan:{},an:[],docs:[],resume:'',match:null,skills:[],analyzed:false,answers:0,log:[]},S.get('st',{}));
+let st=Object.assign({chats:[],cur:{},bm:[],plan:{},an:[],docs:[],resume:'',match:null,skills:[],gaps:[],skillMastery:{},analyzed:false,answers:0,log:[],weeklyPlan:null,projects:[],scorecards:[]},S.get('st',{}));
 let P=S.get('prof',{}),CF=Object.assign({theme:'dark',size:'15',round:'Mixed',level:'Standard',voice:'female',rate:'1',read:'off',lang:'en-US'},S.get('cfg',{}));
 const base='';let tok=S.get('tok','');
 let lastSync={},syncT={};
 function sync(key,val){if(!tok)return;clearTimeout(syncT[key]);syncT[key]=setTimeout(()=>{const j=JSON.stringify(val);if(lastSync[key]===j)return;lastSync[key]=j;api('/api/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:j.length?JSON.stringify({key,value:val}):''}).catch(()=>{})},800)}
-const save=r=>{S.set('st',st);sync('plan',st.plan);sync('bm',st.bm);if(r!==false)render()};
-const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const save=r=>{S.set('st',st);sync('plan',st.plan);sync('bm',st.bm);sync('resume',st.resume);sync('weekly',st.weeklyPlan);sync('projects',st.projects);sync('plan_adjustment',st.planAdjustment);sync('skill_mastery',st.skillMastery);if(r!==false)render()};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const toast=t=>{const d=document.createElement('div');d.className='toast';d.textContent=t;$('#toasts').append(d);setTimeout(()=>d.remove(),4000)};
 const skel=n=>Array.from({length:n},(_,i)=>`<div class="sk" style="width:${96-i*13}%"></div>`).join('');
 const log=t=>{st.log.unshift({t,d:Date.now()});st.log=st.log.slice(0,6)};
@@ -31,7 +31,7 @@ async function api(path,o={}){
 }
 function wipeLocal(){
   try{Object.keys(localStorage).filter(k=>k==='tok'||k==='st'||k==='prof'||k.startsWith('cfg_')).forEach(k=>localStorage.removeItem(k))}catch{}
-  tok='';st={chats:[],cur:{},bm:[],plan:{},an:[],docs:[],resume:'',match:null,skills:[],analyzed:false,answers:0,log:[]};P={};cur.coach=null;cur.kb=null;JOBS=[];$('#sc-out').innerHTML='';
+  tok='';st={chats:[],cur:{},bm:[],plan:{},an:[],docs:[],resume:'',match:null,skills:[],gaps:[],skillMastery:{},analyzed:false,answers:0,log:[],weeklyPlan:null,projects:[],scorecards:[]};P={};cur.coach=null;cur.kb=null;JOBS=[];$('#sc-out').innerHTML='';
   $$('#pform input,#pform select,#pform textarea,#resume,#jd,#c-basis').forEach(e=>e.value='');$('#aout').innerHTML='';$('#pres-s').textContent='';
 }
 const jpost=(p,b,o={})=>api(p,Object.assign({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)},o));
@@ -71,12 +71,22 @@ async function initGoogle(){try{const c=await (await fetch('/api/config')).json(
   google.accounts.id.initialize({client_id:c.google_client_id,callback:async r=>{try{const j=await jpost('/api/google',{credential:r.credential},{noauth:true,retry:true});await enter(j.token)}catch(e){$('#a-err').textContent=e.message}}});
   window._g=true}catch{}}
 async function boot2(){try{$('#acct').textContent=(await api('/api/me')).username}catch{return}
-  await Promise.all([loadChats(),loadDocs(),loadState(),loadProgress()]);save();draw('coach');draw('kb')}
+  await Promise.all([loadChats(),loadDocs(),loadState(),loadProgress(),loadScorecards()]);save();draw('coach');draw('kb')}
 async function loadState(){try{const s=await api('/api/state');
   if(s.profile){P=s.profile;S.set('prof',P);PF.forEach(([k])=>{const e=$('#p_'+k);if(e)e.value=P[k]||''})}else if(Object.keys(P).length)sync('profile',P);
-  if(s.plan)st.plan=s.plan;if(s.bm)st.bm=s.bm;lastSync={profile:JSON.stringify(P),plan:JSON.stringify(st.plan),bm:JSON.stringify(st.bm)}}catch{}}
+  if(s.plan)st.plan=s.plan;if(s.bm)st.bm=s.bm;
+  if(typeof s.resume==='string')st.resume=s.resume;
+  if(s.weekly)st.weeklyPlan=s.weekly;
+  if(Array.isArray(s.projects))st.projects=s.projects;
+  if(s.plan_adjustment)st.planAdjustment=s.plan_adjustment;
+  if(s.skill_mastery)st.skillMastery=s.skill_mastery;
+  lastSync={profile:JSON.stringify(P),plan:JSON.stringify(st.plan),bm:JSON.stringify(st.bm),resume:JSON.stringify(st.resume),weekly:JSON.stringify(st.weeklyPlan),projects:JSON.stringify(st.projects),plan_adjustment:JSON.stringify(st.planAdjustment),skill_mastery:JSON.stringify(st.skillMastery)}}catch{}}
 async function loadProgress(){try{st.prog=await api('/api/progress');st.answers=st.prog.total}catch{}}
-async function loadChats(){try{st.chats=await api('/api/sessions')}catch{}}
+async function loadScorecards(){try{const r=await api('/api/scorecards');st.scorecards=r.scorecards||[]}catch{}}
+async function loadChats(){try{st.chats=await api('/api/sessions');
+  const latest=st.chats.find(x=>x.type==='analysis');
+  if(latest){st.analyzed=true;st.match=latest.result?.score??latest.result?.match_score??null;st.skills=latest.result?.skill_gap_map||[];st.gaps=latest.result?.gaps||[]}
+}catch{}}
 async function loadDocs(){try{st.docs=await api('/api/docs')}catch{}}
 
 /* ---------- sidebar (arrow button opens and closes it) ---------- */
@@ -91,7 +101,7 @@ addEventListener('resize',()=>{if(mob()!==wasMob){wasMob=mob();setSide(wasMob?fa
 setSide(mob()?false:S.get('side',true)!==false);
 
 /* ---------- navigation ---------- */
-function show(v){$$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));$$('#side button').forEach(a=>a.classList.toggle('on',a.dataset.v===v));$('.stage').scrollTop=0;if(mob())setSide(false);if(v==='tools'&&!$('#t-resume').value)$('#t-resume').value=st.resume||'';if(v==='jobs')loadJobs();if(v==='coach'||v==='kb')draw(v)}
+function show(v){$$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));$$('#side button').forEach(a=>a.classList.toggle('on',a.dataset.v===v));$('.stage').scrollTop=0;if(mob())setSide(false);if(v==='tools'&&!$('#t-resume').value)$('#t-resume').value=st.resume||'';if(v==='jobs')loadJobs();if(v==='planner')renderSavedPlanOutputs();if(v==='coach'||v==='kb')draw(v)}
 document.addEventListener('click',e=>{const a=e.target.closest('[data-v]');if(a)show(a.dataset.v)});
 
 /* ---------- chats (saved on your account) ---------- */
@@ -106,7 +116,8 @@ function draw(k){
   box.innerHTML=(c.msgs.length?'':`<div class="m a">${intro}</div>`)+c.msgs.map(m=>`<div class="m ${m.role==='user'?'u':m.role==='error'?'e':'a'}">${esc(m.content)}</div>`).join('')+(c.busy?`<div class="m a" style="width:min(420px,80%)">${skel(3)}</div>`:'');
   box.scrollTop=box.scrollHeight;
   if(k==='coach'){$('#c-round').value=c.cfg.round;$('#c-lang').value=c.cfg.lang||'English';$('#c-level').value=c.cfg.level;$('#c-basis').value=c.cfg.basis;$('#c-res').checked=!!c.cfg.res;
-    $('#c-files').innerHTML=c.cfg.files.map((f,i)=>`<div class="file"><span>${esc(f.name)}</span><button type="button" class="db" data-rf="${i}" aria-label="Remove ${esc(f.name)}"><i class="ph ph-x"></i></button></div>`).join('')}
+    $('#c-files').innerHTML=c.cfg.files.map((f,i)=>`<div class="file"><span>${esc(f.name)}</span><button type="button" class="db" data-rf="${i}" aria-label="Remove ${esc(f.name)}"><i class="ph ph-x"></i></button></div>`).join('');
+    $('#score-history').innerHTML=st.scorecards.length?st.scorecards.slice(0,5).map(s=>`<div class="task"><span>Score: <b>${s.result?.average}/10</b></span><small>${esc(s.created_at)}</small></div>`).join(''):'<p class="mute sm">Completed scorecards appear here.</p>'}
 }
 ['coach','kb'].forEach(k=>{
   $('#hq-'+k).oninput=()=>draw(k);$('#nc-'+k).onclick=()=>{newC(k);draw(k)};
@@ -177,7 +188,8 @@ $('#analyze').onclick=async()=>{const resume=$('#resume').value.trim(),jd=$('#jd
   try{const fd=new FormData();fd.append('resume_text',resume);fd.append('jd',jd);
     const r=await api('/api/analyze',{method:'POST',body:fd});
     st.resume=resume;st.analyzed=true;const K=['score','match_score','match','match_percentage'].find(x=>r[x]!=null);st.match=K&&typeof r[K]==='number'?r[K]:null;
-    st.skills=Array.isArray(r.skills)?r.skills.filter(x=>x&&x.name).slice(0,8):[];
+    st.skills=Array.isArray(r.skill_gap_map)?r.skill_gap_map.slice(0,12):[];
+    st.gaps=Array.isArray(r.gaps)?r.gaps.slice(0,12):[];
     o.innerHTML=showResult(r);log('Resume match '+(st.match!=null?st.match+'%':'run'));await loadChats();save()}
   catch(e){o.innerHTML='<div class="box" style="color:var(--err)">Analysis failed. '+esc(e.message)+'</div>'}$('#analyze').disabled=false};
 $('#past').onclick=e=>{const a=e.target.closest('[data-an]');if(a){const x=st.chats.find(z=>z.type==='analysis'&&String(z.id)===a.dataset.an);if(x){$('#aout').innerHTML=showResult(x.result);$('#aout').scrollIntoView()}}};
@@ -223,6 +235,70 @@ function drawPlan(){const t=tasks(),n=t.filter(x=>st.plan[x[0]]).length;$('#pl-b
   $('#pl-list').innerHTML=t.map(x=>`<label class="task"><input type="checkbox" data-pt="${x[0]}" ${st.plan[x[0]]?'checked':''}><span>${esc(x[1])}<br><span class="sm mute">${esc(x[2])}</span></span><small>By day ${x[3]}</small></label>`).join('')}
 $('#pl-list').onchange=e=>{const k=e.target.dataset.pt;if(k){st.plan[k]=e.target.checked;save()}};
 
+async function adjustPlan(){
+  const planned=+($('#wp-weeks')?.value||4);
+  const t=tasks(),completed=t.filter(x=>st.plan[x[0]]).length+(st.projects||[]).filter(p=>p.completed).length;
+  const totalTasks=t.length+(st.projects||[]).length;
+  const latest=st.scorecards.length?st.scorecards[0].result?.average||0:0;
+  const struggling=(lastAn()?.skill_gap_map||[]).filter(x=>x.gap_severity==='High'||x.gap_severity==='Critical').map(x=>x.skill);
+  try{
+    const r=await jpost('/api/progress/adjust',{total_tasks:totalTasks,completed_tasks:completed,planned_weeks:planned,latest_score:latest,struggling_skills:struggling});
+    st.planAdjustment=r;
+    save(false);
+  }catch{}
+}
+
+function renderSavedPlanOutputs(){
+  if(st.weeklyPlan?.weeks){
+    $('#wp-out').innerHTML=st.weeklyPlan.weeks.map(w=>`<div class="box" style="margin-bottom:10px"><h3>Week ${w.week}: ${esc(w.theme)}</h3>${w.tasks.map(t=>`<label class="task"><span><b>${esc(t.task)}</b><br><span class="sm mute">${esc(t.skill)}${t.resource?' - '+esc(t.resource):''}</span></span></label>`).join('')}</div>`).join('');
+  }
+  if(st.projects?.length){
+    $('#pf-out').innerHTML=st.projects.map((p,i)=>`<div class="box" style="margin-bottom:10px"><label class="task"><input type="checkbox" data-pc="${i}" ${p.completed?'checked':''}><span><b>${esc(p.title)}</b><br><span class="sm mute">${esc(p.description)}</span></span></label><p class="sm mute">${esc(p.difficulty)} - ${esc(p.duration)}<br>Skills: ${esc(p.skills_covered.join(', '))}</p></div>`).join('');
+  }
+  if(st.planAdjustment){
+    $('#pl-sub').textContent=st.planAdjustment.note+(st.planAdjustment.priorities.length?' Priority gaps: '+st.planAdjustment.priorities.join(', ')+'.':'');
+  }
+}
+
+$('#wp-go').onclick=async()=>{
+  const a=lastAn();
+  if(!a){toast('Run a resume match first.');return}
+  const role=P.target||$('#brole')?.value||'Target role';
+  const gaps=a.gaps||[];
+  const skill_gap_map=a.skill_gap_map||[];
+  const btn=$('#wp-go');
+  btn.disabled=true;$('#wp-out').innerHTML='<div class="box">'+skel(6)+'</div>';
+  try{
+    const r=await jpost('/api/weekly-plan',{target_role:role,gaps,skill_gap_map,weeks:+$('#wp-weeks').value});
+    st.weeklyPlan=r;
+    $('#wp-out').innerHTML=r.weeks.map(w=>`<div class="box" style="margin-bottom:10px"><h3>Week ${w.week}: ${esc(w.theme)}</h3>${w.tasks.map(t=>`<label class="task"><span><b>${esc(t.task)}</b><br><span class="sm mute">${esc(t.skill)}${t.resource?' - '+esc(t.resource):''}</span></span></label>`).join('')}</div>`).join('');
+    await adjustPlan();save();
+  }catch(e){$('#wp-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div>'}
+  btn.disabled=false;
+};
+
+$('#pf-go').onclick=async()=>{
+  const a=lastAn();
+  if(!a){toast('Run a resume match first.');return}
+  const btn=$('#pf-go');
+  btn.disabled=true;$('#pf-out').innerHTML='<div class="box">'+skel(5)+'</div>';
+  try{
+    const r=await jpost('/api/portfolio',{target_role:P.target||'Target role',gaps:a.gaps||[],skill_gap_map:a.skill_gap_map||[]});
+    st.projects=r.projects||[];
+    $('#pf-out').innerHTML=st.projects.map((p,i)=>`<div class="box" style="margin-bottom:10px"><label class="task"><input type="checkbox" data-pc="${i}" ${p.completed?'checked':''}><span><b>${esc(p.title)}</b><br><span class="sm mute">${esc(p.description)}</span></span></label><p class="sm mute">${esc(p.difficulty)} - ${esc(p.duration)}<br>Skills: ${esc(p.skills_covered.join(', '))}</p></div>`).join('');
+    save();
+  }catch(e){$('#pf-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div>'}
+  btn.disabled=false;
+};
+
+$('#pf-out').onchange=e=>{
+  const i=e.target.dataset.pc;
+  if(i===undefined)return;
+  st.projects[+i].completed=e.target.checked;
+  save();
+  adjustPlan();
+};
+
 /* ---------- profile ---------- */
 const PF=[['name','Full name'],['email','Email','email'],['phone','Phone','tel'],['loc','Location'],['title','Current job title'],['company','Current company'],['exp','Years of experience','sel',['0 to 1','1 to 3','3 to 6','6 to 10','10 or more']],['edu','Highest education'],['target','Target role'],['tcomp','Target companies'],['sal','Expected salary'],['notice','Notice period','sel',['Immediate','15 days','30 days','60 days','90 days']],['mode','Work mode','sel',['Remote','Hybrid','On-site']],['date','Interview date','date'],['li','LinkedIn URL','url'],['gh','GitHub or portfolio URL','url'],['skills','Key skills, separated by commas','text','full'],['sum','Professional summary','ta','full']];
 $('#pform').innerHTML=PF.map(([k,l,t,x])=>`<div class="${x==='full'?'full':''}"><label class="lbl" for="p_${k}">${l}</label>${t==='ta'?`<textarea id="p_${k}"></textarea>`:t==='sel'?`<select id="p_${k}"><option value="">Select</option>${x.map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="p_${k}" type="${t||'text'}">`}</div>`).join('');
@@ -249,12 +325,18 @@ function render(){
   $('#strip').innerHTML=`<div><span class="mute sm">Preparation progress</span><b class="big">${sc}%</b></div><div><span class="mute sm">Chats saved</span><b>${st.chats.filter(x=>x.type!=='analysis').length}</b></div><div><span class="mute sm">Practice answers</span><b>${st.answers}</b></div><div><span class="mute sm">Match score</span><b>${st.match!=null?st.match+'%':'-'}</b></div><div><span class="mute sm">Saved questions</span><b>${st.bm.length}</b></div>`;
   const n=pdone()<.7?['Finish your profile','The coach and planner need your target role, experience and interview date.','profile','Open profile']:!st.analyzed?['Match your resume to a job','Paste both and get a score and six likely questions.','analyzer','Open resume match']:st.answers<10?['Answer '+(10-st.answers)+' more practice questions','Practice answers carry the largest share of your progress.','coach','Start interview']:['Run a harder round','Switch to Hard level and a different round type.','coach','Start interview'];
   $('#n-title').textContent=n[0];$('#n-text').textContent=n[1];$('#n-btn').textContent=n[3];$('#n-btn').onclick=()=>show(n[2]);
-    const g=(lastAn()||{}).gaps||[];$('#bars').innerHTML=g.length?g.slice(0,6).map(x=>`<p style="padding:7px 0;border-top:1px solid var(--line);font-size:14px">${esc(x)}</p>`).join(''):'<p class="mute sm">Run a resume match and the gaps it finds show up here.</p>';
+    const map=(lastAn()||{}).skill_gap_map||st.skills||[];
+    $('#bars').innerHTML=map.length?map.slice(0,8).map((x,i)=>{const name=typeof x==='string'?x:x.skill||'Skill';const mastery=st.skillMastery[name]||'Not started';return `<div style="padding:7px 0;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;justify-content:space-between"><span class="sm">${esc(name)}</span><select data-mastery="${esc(name)}" aria-label="Mastery for ${esc(name)}" style="width:auto"><option ${mastery==='Not started'?'selected':''}>Not started</option><option ${mastery==='Learning'?'selected':''}>Learning</option><option ${mastery==='Practicing'?'selected':''}>Practicing</option><option ${mastery==='Mastered'?'selected':''}>Mastered</option></select></div>`}).join(''):'<p class="mute sm">Run a resume match and the gaps it finds show up here.</p>';
   $('#act').innerHTML=st.log.length?st.log.map(l=>`<tr><td>${esc(l.t)}</td><td class="mute" style="text-align:right">${ago(l.d)}</td></tr>`).join(''):'<tr><td class="mute">Nothing yet. Analyses and practice sessions appear here.</td></tr>';
     $('#kbd').innerHTML=st.docs.map(d=>`<div class="file"><span>${esc(d.doc_name)}</span><span class="mute">${d.chunks}</span></div>`).join('');
     const an=st.chats.filter(x=>x.type==='analysis');$('#past').innerHTML=an.length?an.map(a=>`<div class="task" style="cursor:pointer" data-an="${a.id}"><span>${esc(a.title)}</span><small>${a.created_at}</small></div>`).join(''):'<p class="mute sm">Saved analyses appear here.</p>';
   drawPlan();drawChart();
 }
+$('#bars').onchange=e=>{
+  const name=e.target.dataset.mastery;
+  if(name!==undefined){st.skillMastery[name]=e.target.value;save();adjustPlan()}
+};
+
 function drawChart(){const d=(st.prog&&st.prog.days)||[];
   if(!d.length){$('#chart').innerHTML='<p class="mute sm">Answers you type in the coach are counted per day here. Nothing yet.</p>';return}
   const m=Math.max(...d.map(x=>x.count)),W=560,H=140,sl=W/d.length,bw=Math.min(36,sl-6);
@@ -280,17 +362,24 @@ $('#bgo').onclick=async()=>{const role=($('#brole').value.trim()||P.target||'').
 $('#bout').onclick=e=>{const p=e.target.closest('[data-gp]');if(p){const q=GEN[p.dataset.gp].question,c=newC('coach');c.title='Practice: '+q.slice(0,30);show('coach');send('coach','Ask me this question and score my answer: '+q)}};
 /* ---------- job tracker ---------- */
 let JOBS=[],jedit=null;
-async function loadJobs(){try{JOBS=await api('/api/jobs')}catch(e){toast(e.message)}drawJobs()}
+async function loadJobInsights(){
+  try{
+    const r=await api('/api/jobs/insights');
+    const dim=(title,rows)=>rows&&rows.length?`<h3>${esc(title)}</h3>`+rows.slice(0,8).map(x=>`<p style="margin:5px 0">${esc(x.label||x.role)}: <b>${x.response_rate}%</b> <span class="mute sm">(${x.responded} of ${x.applied})</span></p>`).join(''):'';
+    $('#j-insights').innerHTML=r.insights?.length?`<div class="box">${r.insights.map(x=>`<p>${esc(x)}</p>`).join('')}</div>`:'<p class="mute sm">Track enough applications and patterns will appear here.</p>'+dim('Role types',r.role_type_stats)+dim('Company domains',r.domain_stats)+dim('Channels or styles',r.channel_stats);
+  }catch(e){$('#j-insights').innerHTML='<p style="color:var(--err)">Could not load response insights.</p>'}
+}
+async function loadJobs(){try{JOBS=await api('/api/jobs')}catch(e){toast(e.message)}drawJobs();await loadJobInsights()}
 function drawJobs(){const f=$('#jf').value,L=JOBS.filter(j=>!f||j.status===f);if($('#jo').value==='i')L.sort((a,b)=>(a.interview_on||'9').localeCompare(b.interview_on||'9'));
   const ST=['Applied','Interview','Offer','Rejected','Withdrawn'];
   $('#jlist').innerHTML=L.length?L.map(j=>`<tr><td><b>${esc(j.company)}</b><br><span class="sm mute">${esc(j.role)}</span></td><td><select data-js="${j.id}" aria-label="Status for ${esc(j.company)}" style="width:auto">${ST.map(s=>`<option ${s===j.status?'selected':''}>${s}</option>`).join('')}</select></td><td class="sm">${esc(j.applied_on||'-')}</td><td class="sm">${esc(j.interview_on||'-')}</td><td style="text-align:right;white-space:nowrap"><button type="button" class="btn ghost" data-je="${j.id}">Edit</button> <button type="button" class="btn ghost" data-jd="${j.id}" aria-label="Delete ${esc(j.company)}"><i class="ph ph-trash"></i></button></td></tr>${j.notes?`<tr><td colspan="5" class="sm mute">${esc(j.notes)}</td></tr>`:''}`).join(''):'<tr><td colspan="5" class="mute">No applications yet. Add your first one above.</td></tr>'}
-const jbody=()=>({company:$('#jc').value.trim(),role:$('#jr').value.trim(),status:$('#js').value,applied_on:$('#ja').value,interview_on:$('#ji').value,notes:$('#jn').value});
-function jreset(){jedit=null;['jc','jr','ja','ji','jn'].forEach(i=>$('#'+i).value='');$('#js').value='Applied';$('#jsave').textContent='Add application';$('#jcancel').hidden=true}
+const jbody=()=>({company:$('#jc').value.trim(),role:$('#jr').value.trim(),status:$('#js').value,applied_on:$('#ja').value,interview_on:$('#ji').value,notes:$('#jn').value,role_type:$('#jrt').value.trim(),domain:$('#jdomain').value.trim(),channel:$('#jchannel').value.trim(),response_date:$('#jrdate').value});
+function jreset(){jedit=null;['jc','jr','ja','ji','jn','jrt','jdomain','jchannel','jrdate'].forEach(i=>$('#'+i).value='');$('#js').value='Applied';$('#jsave').textContent='Add application';$('#jcancel').hidden=true}
 $('#jsave').onclick=async()=>{const b=jbody();if(!b.company||!b.role){toast('Add a company and a role.');return}
   try{await api(jedit?'/api/jobs/'+jedit:'/api/jobs',{method:jedit?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});jreset();await loadJobs()}catch(e){toast(e.message)}};
 $('#jcancel').onclick=jreset;$('#jf').onchange=$('#jo').onchange=drawJobs;
 $('#jlist').onclick=async e=>{const ed=e.target.closest('[data-je]'),de=e.target.closest('[data-jd]');
-  if(ed){const j=JOBS.find(x=>x.id==ed.dataset.je);jedit=j.id;$('#jc').value=j.company;$('#jr').value=j.role;$('#js').value=j.status;$('#ja').value=j.applied_on||'';$('#ji').value=j.interview_on||'';$('#jn').value=j.notes||'';$('#jsave').textContent='Save changes';$('#jcancel').hidden=false;$('#jc').focus()}
+  if(ed){const j=JOBS.find(x=>x.id==ed.dataset.je);jedit=j.id;$('#jc').value=j.company;$('#jr').value=j.role;$('#js').value=j.status;$('#ja').value=j.applied_on||'';$('#ji').value=j.interview_on||'';$('#jn').value=j.notes||'';$('#jrt').value=j.role_type||'';$('#jdomain').value=j.domain||'';$('#jchannel').value=j.channel||'';$('#jrdate').value=j.response_date||'';$('#jsave').textContent='Save changes';$('#jcancel').hidden=false;$('#jc').focus()}
   if(de&&confirm('Delete this application?')){try{await api('/api/jobs/'+de.dataset.jd,{method:'DELETE'});await loadJobs()}catch(err){toast(err.message)}}};
 $('#jlist').onchange=async e=>{const id=e.target.dataset.js;if(!id)return;const j=JOBS.find(x=>x.id==id);
   try{await api('/api/jobs/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...j,status:e.target.value})});j.status=e.target.value}catch(err){toast(err.message);drawJobs()}};
@@ -304,7 +393,10 @@ $('#sc-go').onclick=async()=>{const c=cur.coach;if(!c||!c.id){toast('Answer at l
     <h2 style="margin-top:22px">Recommendations</h2>${L(r.recommendations)}
     <h2 style="margin:22px 0 6px">Answer by answer</h2><table><tbody>${r.answers.map(a=>`<tr><td>${esc(a.question)}</td><td><b>${a.score}</b>/10</td><td class="sm">${esc(a.comment)}</td></tr>`).join('')}</tbody></table>
     <button type="button" class="btn no-print" id="sc-pdf" style="margin-top:18px"><i class="ph ph-file-pdf"></i>Save as PDF</button><p class="mute sm no-print">Opens your print dialog. Choose "Save as PDF" as the printer.</p>`;
-    $('#sc-pdf').onclick=()=>window.print()}
+    $('#sc-pdf').onclick=()=>window.print();
+    await loadScorecards();
+    draw('coach');
+    await adjustPlan();}
   catch(e){$('#sc-out').innerHTML='<div class="box" style="color:var(--err)">'+esc(e.message)+'</div>'}};
 /* ---------- guest resume match ---------- */
 $('#g-go').onclick=async()=>{const r=$('#g-resume').value.trim(),j=$('#g-jd').value.trim(),o=$('#g-out');

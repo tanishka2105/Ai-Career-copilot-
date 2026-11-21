@@ -1,7 +1,7 @@
 {
-  "name": "Ascendra",
+  "name": "Ascendra - Career Pivot Coach",
   "short_name": "Ascendra",
-  "description": "An AI-powered career platform for smarter resumes, personalized insights, and interview readiness.",
+  "description": "Ascendra - Career Pivot Coach. Personalized skill-gap analysis, weekly learning plans, mock interviews, and progress tracking for your career transition.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111315",

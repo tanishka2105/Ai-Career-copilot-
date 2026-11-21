@@ -27,7 +27,7 @@ def top_chunks(question, chunks, k=3):
 
 def answer(question, context_chunks):
     context = "\n---\n".join(context_chunks)
-    prompt = ("Sirf neeche diye context se jawab do. Agar jawab context mein nahi hai, "
-              "toh bolo: Documents mein nahi mila.\n\n"
-              f"CONTEXT:\n{context}\n\nSAWAL: {question}")
+    prompt = ("Answer only from the context below. If the answer is not in the context, "
+              "say: This information was not found in the documents.\n\n"
+              f"CONTEXT:\n{context}\n\nQUESTION: {question}")
     return ask_llm(prompt)

@@ -109,3 +109,97 @@ def test_scorecard_average_comes_from_valid_scores(client, user, monkeypatch):
     monkeypatch.setattr(features, "ask_llm", lambda p: fake)
     r = client.post("/api/scorecard", headers=h, json={"session_id": sid}).json()
     assert r["average"] == 7.0 and r["count"] == 1
+
+
+def test_scorecard_history_is_saved_and_private(client, user, monkeypatch):
+    monkeypatch.setattr(main.agent, "coach", lambda m, u: "Question: tell me about a project.")
+    a, b = user("alina"), user("ben")
+    sid = chat(client, a, "Start the interview").json()["session_id"]
+    chat(client, a, "I built a project.", sid)
+    fake = json.dumps({
+        "answers": [{"index": 0, "score": 8, "comment": "Clear"}],
+        "strengths": ["clear"],
+        "weaknesses": ["depth"],
+        "recommendations": ["add metrics"],
+    })
+    monkeypatch.setattr(features, "ask_llm", lambda p: fake)
+    assert client.post("/api/scorecard", headers=a, json={"session_id": sid}).status_code == 200
+    history = client.get("/api/scorecards", headers=a).json()["scorecards"]
+    assert len(history) == 1 and history[0]["result"]["average"] == 8.0
+    assert client.get("/api/scorecards", headers=b).json()["scorecards"] == []
+
+
+def test_progress_adjustment_moves_behind_and_ahead(client, user):
+    h = user()
+    behind = client.post("/api/progress/adjust", headers=h, json={
+        "total_tasks": 10,
+        "completed_tasks": 2,
+        "planned_weeks": 4,
+        "latest_score": 4,
+        "struggling_skills": ["SQL"],
+    }).json()
+    assert behind["status"] == "behind" and behind["adjusted_weeks"] == 5
+    ahead = client.post("/api/progress/adjust", headers=h, json={
+        "total_tasks": 10,
+        "completed_tasks": 9,
+        "planned_weeks": 4,
+        "latest_score": 8,
+        "struggling_skills": [],
+    }).json()
+    assert ahead["status"] == "ahead" and ahead["adjusted_weeks"] == 3
+
+
+def test_application_response_insights_include_channel_and_domain(client, user):
+    h = user()
+    client.post("/api/jobs", headers=h, json={
+        "company": "Acme",
+        "role": "Backend Engineer",
+        "role_type": "Engineering",
+        "domain": "Fintech",
+        "channel": "Referral",
+        "status": "Interview",
+    })
+    insights = client.get("/api/jobs/insights", headers=h).json()
+    assert insights["role_type_stats"][0]["label"] == "Engineering"
+    assert insights["domain_stats"][0]["label"] == "Fintech"
+    assert insights["channel_stats"][0]["label"] == "Referral"
+
+
+def test_weekly_plan_and_portfolio_end_to_end(client, user, monkeypatch):
+    h = user()
+    monkeypatch.setattr(features, "ask_llm", lambda p:
+        '[{"week":1,"theme":"SQL","tasks":[{"task":"Build joins","resource":"SQL tutorial","skill":"SQL"}]}]'
+        if "Create a 4-week learning plan" in p
+        else '[{"title":"SQL Dashboard","description":"Build a report","skills_covered":["SQL"],"difficulty":"Intermediate","duration":"1 week"},{"title":"SQL Quality Check","description":"Build data tests","skills_covered":["SQL"],"difficulty":"Beginner","duration":"1 week"}]')
+    plan = client.post("/api/weekly-plan", headers=h, json={
+        "target_role": "Data Analyst",
+        "gaps": ["SQL"],
+        "skill_gap_map": [{"skill": "SQL", "current_level": "Beginner", "required_level": "Intermediate", "gap_severity": "High"}],
+        "weeks": 4,
+    })
+    assert plan.status_code == 200
+    assert plan.json()["weeks"][0]["tasks"][0]["skill"] == "SQL"
+    projects = client.post("/api/portfolio", headers=h, json={
+        "target_role": "Data Analyst",
+        "gaps": ["SQL"],
+        "skill_gap_map": [{"skill": "SQL", "current_level": "Beginner", "required_level": "Intermediate"}],
+    })
+    assert projects.status_code == 200
+    assert projects.json()["projects"][0]["title"] == "SQL Dashboard"
+
+
+def test_saved_state_accepts_pipeline_objects(client, user):
+    h = user()
+    payloads = [
+        {"key": "resume", "value": "Resume text"},
+        {"key": "weekly", "value": {"weeks": [{"week": 1, "theme": "SQL", "tasks": []}]}},
+        {"key": "projects", "value": [{"title": "Dashboard", "completed": False}]},
+        {"key": "skill_mastery", "value": {"SQL": "Learning"}},
+    ]
+    for payload in payloads:
+        assert client.put("/api/state", headers=h, json=payload).status_code == 200
+    state = client.get("/api/state", headers=h).json()
+    assert state["resume"] == "Resume text"
+    assert state["weekly"]["weeks"][0]["theme"] == "SQL"
+    assert state["projects"][0]["title"] == "Dashboard"
+    assert state["skill_mastery"]["SQL"] == "Learning"

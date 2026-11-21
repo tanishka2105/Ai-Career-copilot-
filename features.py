@@ -52,12 +52,12 @@ def ip(request: Request):
 def purge(uid):
     """Called by account deletion."""
     with db.engine.begin() as c:
-        for t in (t_state, t_email, t_reset, t_job):
+        for t in (t_state, t_email, t_reset, t_job, db.scorecards):
             c.execute(delete(t).where(t.c.user_id == uid))
 
 
 # ---------- profile, planner and bookmarks saved on the server ----------
-ALLOWED = {"profile", "plan", "bm"}
+ALLOWED = {"profile", "plan", "bm", "resume", "weekly", "projects", "plan_adjustment", "skill_mastery"}
 
 
 @router.get("/api/state")
@@ -69,7 +69,7 @@ def get_state(uid: int = Depends(auth.current_user)):
 
 class StateIn(BaseModel):
     key: str
-    value: dict | list
+    value: object
 
 
 @router.put("/api/state")
@@ -87,10 +87,48 @@ def put_state(s: StateIn, uid: int = Depends(auth.current_user)):
     return {"ok": True}
 
 
+class ProgressAdjustIn(BaseModel):
+    total_tasks: int = Field(default=0, ge=0)
+    completed_tasks: int = Field(default=0, ge=0)
+    planned_weeks: int = Field(default=4, ge=1, le=12)
+    latest_score: float = Field(default=0, ge=0, le=10)
+    struggling_skills: list = Field(default=[])
+
+
+@router.post("/api/progress/adjust")
+def adjust_progress(p: ProgressAdjustIn, uid: int = Depends(auth.current_user)):
+    progress = p.completed_tasks / p.total_tasks if p.total_tasks else 0
+    if progress >= 0.8 and p.latest_score >= 7:
+        adjusted = max(2, p.planned_weeks - 1)
+        status = "ahead"
+        note = "Progress is ahead of pace. One week was removed and priorities were preserved."
+    elif progress < 0.35 or p.latest_score < 5:
+        adjusted = min(12, p.planned_weeks + 1)
+        status = "behind"
+        note = "Progress is behind or struggling. One week was added to focus on weak gaps."
+    else:
+        adjusted = p.planned_weeks
+        status = "on_track"
+        note = "Progress is on track. Existing priorities remain in place."
+    priorities = [str(x)[:80] for x in p.struggling_skills[:6]]
+    return {"status": status, "adjusted_weeks": adjusted, "priorities": priorities,
+            "note": note}
+
+
 # ---------- practice progress (only answers the user typed) ----------
-AUTO = ("Switch the interview", "Change the difficulty", "The interview basis", "New reference files",
-        "Continue the interview", "Start the interview", "Ask me a", "Ask a technical", "Review my last",
-        "Give me a harder", "Ask me this question")
+AUTO = (
+    "switch the interview",
+    "change the difficulty",
+    "the interview basis",
+    "new reference files",
+    "continue the interview",
+    "start the interview",
+    "ask me a",
+    "ask a technical",
+    "review my last",
+    "give me a harder",
+    "ask me this question",
+)
 
 
 @router.get("/api/progress")
@@ -102,7 +140,8 @@ def progress(uid: int = Depends(auth.current_user)):
     days, total = defaultdict(int), 0
     with db.engine.connect() as c:
         for content, ts in c.execute(q):
-            if content.startswith(AUTO) or not ts:
+            normalized = content.strip().lower()
+            if not ts or normalized.startswith(AUTO):
                 continue
             days[ts.strftime("%Y-%m-%d")] += 1
             total += 1
@@ -276,7 +315,9 @@ def bank(b: BankReq, uid: int = Depends(auth.current_user)):
 t_job = Table("applications", db.meta, Column("id", Integer, primary_key=True, autoincrement=True),
               Column("user_id", Integer, index=True, nullable=False), Column("company", String(120), nullable=False),
               Column("role", String(120), nullable=False), Column("status", String(20), nullable=False),
-              Column("applied_on", String(10)), Column("interview_on", String(10)), Column("notes", Text))
+              Column("applied_on", String(10)), Column("interview_on", String(10)), Column("notes", Text),
+              Column("role_type", String(80)), Column("domain", String(80)),
+              Column("channel", String(80)), Column("response_date", String(10)))
 STATUSES = ["Applied", "Interview", "Offer", "Rejected", "Withdrawn"]
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -288,16 +329,22 @@ class JobIn(BaseModel):
     applied_on: str = ""
     interview_on: str = ""
     notes: str = Field("", max_length=1000)
+    role_type: str = Field("", max_length=80)
+    domain: str = Field("", max_length=80)
+    channel: str = Field("", max_length=80)
+    response_date: str = ""
 
 
 def _check_job(j):
     if j.status not in STATUSES:
         raise HTTPException(400, "Unknown status")
-    for d in (j.applied_on, j.interview_on):
+    for d in (j.applied_on, j.interview_on, j.response_date):
         if d and not DATE_RE.match(d):
             raise HTTPException(400, "Dates must look like 2026-11-30")
     return {"company": j.company.strip(), "role": j.role.strip(), "status": j.status,
-            "applied_on": j.applied_on, "interview_on": j.interview_on, "notes": j.notes}
+            "applied_on": j.applied_on, "interview_on": j.interview_on, "notes": j.notes,
+            "role_type": j.role_type.strip(), "domain": j.domain.strip(),
+            "channel": j.channel.strip(), "response_date": j.response_date}
 
 
 @router.get("/api/jobs")
@@ -369,10 +416,17 @@ def scorecard(r: ScoreReq, uid: int = Depends(auth.current_user)):
     if not rows:
         raise HTTPException(502, "The AI returned no usable scores, please try again")
     lst = lambda k: [str(x)[:300] for x in data.get(k, []) if isinstance(x, str)][:5]
-    return {"average": round(sum(x["score"] for x in rows) / len(rows), 1), "count": len(rows), "answers": rows,
-            "strengths": lst("strengths"), "weaknesses": lst("weaknesses"), "recommendations": lst("recommendations"),
-            "criteria": "Relevance, specific evidence, structure and clarity, each out of 10.",
-            "note": "Scores are AI estimates of the answers you typed. They are practice feedback, not a measure of ability."}
+    result = {"average": round(sum(x["score"] for x in rows) / len(rows), 1), "count": len(rows), "answers": rows,
+              "strengths": lst("strengths"), "weaknesses": lst("weaknesses"), "recommendations": lst("recommendations"),
+              "criteria": "Relevance, specific evidence, structure and clarity, each out of 10.",
+              "note": "Scores are AI estimates of the answers you typed. They are practice feedback, not a measure of ability."}
+    db.add_scorecard(uid, r.session_id, result["average"], result["count"], json.dumps(result))
+    return result
+
+
+@router.get("/api/scorecards")
+def scorecards(uid: int = Depends(auth.current_user)):
+    return {"scorecards": db.get_scorecards(uid)}
 
 
 # ---------- guest resume match (no account, limited, nothing saved) ----------
@@ -390,3 +444,185 @@ def guest_analyze(request: Request, resume_text: str = Form(...), jd: str = Form
         print("guest analyze error:", type(e).__name__)
         raise HTTPException(502, "The AI did not respond, please try again")
     return {"score": r.get("score"), "strengths": r.get("strengths", [])[:3], "gaps": r.get("gaps", [])[:3]}
+
+
+# ---------- portfolio project suggestions (matched to skill gaps) ----------
+class PortfolioReq(BaseModel):
+    target_role: str = Field(max_length=120)
+    gaps: list = Field(default=[])
+    skill_gap_map: list = Field(default=[])
+
+
+@router.post("/api/portfolio")
+def portfolio(r: PortfolioReq, uid: int = Depends(auth.current_user)):
+    if not r.target_role.strip():
+        raise HTTPException(400, "Target role is required")
+    gap_text = ", ".join(str(g)[:100] for g in r.gaps[:8]) if r.gaps else "general skills"
+    sgm_text = "; ".join(
+        f"{s.get('skill','?')} (have {s.get('current_level','?')}, need {s.get('required_level','?')})"
+        for s in r.skill_gap_map[:10] if isinstance(s, dict)
+    ) or "see gaps above"
+    raw = _run(uid, "portfolio",
+        "You are a career pivot coach. Suggest 4 to 6 portfolio projects that would help this candidate prove "
+        "they have closed their skill gaps for the target role. Each project should be small enough to finish in "
+        "1 to 3 weeks. Reply with JSON only: "
+        '[{"title":"","description":"what to build and why it matters","skills_covered":["skill1"],'
+        '"difficulty":"Beginner|Intermediate|Advanced","duration":"e.g. 1-2 weeks"}]. English.\n'
+        f"<TARGET ROLE>{r.target_role}</TARGET ROLE>\n"
+        f"<SKILL GAPS>{gap_text}</SKILL GAPS>\n"
+        f"<SKILL GAP MAP>{sgm_text}</SKILL GAP MAP>")
+    try:
+        items = json.loads(raw[raw.find("["):raw.rfind("]") + 1])
+    except Exception:
+        raise HTTPException(502, "The AI returned an unreadable list, please try again")
+    out = []
+    for i in items if isinstance(items, list) else []:
+        if isinstance(i, dict) and i.get("title"):
+            out.append({
+                "title": str(i["title"])[:120],
+                "description": str(i.get("description", ""))[:500],
+                "skills_covered": [str(s)[:60] for s in i.get("skills_covered", []) if s][:6],
+                "difficulty": str(i.get("difficulty", "Intermediate"))[:20],
+                "duration": str(i.get("duration", "1-2 weeks"))[:30]
+            })
+    if len(out) < 2:
+        raise HTTPException(502, "The AI returned too few project ideas, please try again")
+    return {"projects": out[:6]}
+
+
+# ---------- weekly learning plan (built from skill gaps) ----------
+class WeeklyPlanReq(BaseModel):
+    target_role: str = Field(max_length=120)
+    gaps: list = Field(default=[])
+    skill_gap_map: list = Field(default=[])
+    weeks: int = Field(default=4, ge=1, le=12)
+
+
+@router.post("/api/weekly-plan")
+def weekly_plan(r: WeeklyPlanReq, uid: int = Depends(auth.current_user)):
+    if not r.target_role.strip():
+        raise HTTPException(400, "Target role is required")
+    gap_text = ", ".join(str(g)[:100] for g in r.gaps[:8]) if r.gaps else "general skills"
+    sgm_text = "; ".join(
+        f"{s.get('skill','?')} (have {s.get('current_level','?')}, need {s.get('required_level','?')}, severity {s.get('gap_severity','?')})"
+        for s in r.skill_gap_map[:10] if isinstance(s, dict)
+    ) or "see gaps above"
+    raw = _run(uid, "weeklyplan",
+        f"You are a career pivot coach. Create a {r.weeks}-week learning plan to help the candidate close "
+        "their skill gaps for the target role. Prioritize critical and high-severity gaps first. "
+        "Each week should have 3 to 5 tasks with specific actions. "
+        "Reply with JSON only: "
+        '[{"week":1,"theme":"focus area","tasks":[{"task":"specific action","resource":"free resource or search term",'
+        '"skill":"which gap this addresses"}]}]. English.\n'
+        f"<TARGET ROLE>{r.target_role}</TARGET ROLE>\n"
+        f"<SKILL GAPS>{gap_text}</SKILL GAPS>\n"
+        f"<SKILL GAP MAP>{sgm_text}</SKILL GAP MAP>")
+    try:
+        items = json.loads(raw[raw.find("["):raw.rfind("]") + 1])
+    except Exception:
+        raise HTTPException(502, "The AI returned an unreadable plan, please try again")
+    out = []
+    for w in items if isinstance(items, list) else []:
+        if isinstance(w, dict) and w.get("week") is not None:
+            tasks = []
+            for t in w.get("tasks", []) if isinstance(w.get("tasks"), list) else []:
+                if isinstance(t, dict) and t.get("task"):
+                    tasks.append({
+                        "task": str(t["task"])[:200],
+                        "resource": str(t.get("resource", ""))[:200],
+                        "skill": str(t.get("skill", ""))[:80]
+                    })
+            if tasks:
+                out.append({
+                    "week": int(w["week"]) if isinstance(w["week"], (int, float)) else len(out) + 1,
+                    "theme": str(w.get("theme", ""))[:100],
+                    "tasks": tasks[:5]
+                })
+    if len(out) < 1:
+        raise HTTPException(502, "The AI returned an empty plan, please try again")
+    return {"weeks": out[:12]}
+
+
+# ---------- job tracker insights (which roles get responses) ----------
+@router.get("/api/jobs/insights")
+def jobs_insights(uid: int = Depends(auth.current_user)):
+    with db.engine.connect() as c:
+        rows = c.execute(select(t_job).where(t_job.c.user_id == uid)).fetchall()
+    if not rows:
+        return {"total": 0, "insights": [], "role_stats": [], "status_counts": {}}
+
+    apps = [dict(r._mapping) for r in rows]
+    total = len(apps)
+
+    # Count by status
+    status_counts = {}
+    for a in apps:
+        s = a.get("status", "Applied")
+        status_counts[s] = status_counts.get(s, 0) + 1
+
+    # Group by role keyword and calculate response rate
+    # "Response" means Interview, Offer, or Rejected (not still at Applied or Withdrawn)
+    role_groups = {}
+    for a in apps:
+        role = a.get("role", "").strip()
+        # Normalize: take the main role keyword (first 2-3 words)
+        words = role.lower().split()
+        key = " ".join(words[:3]) if len(words) > 3 else role.lower()
+        if key not in role_groups:
+            role_groups[key] = {"role": role, "total": 0, "responded": 0}
+        role_groups[key]["total"] += 1
+        if a.get("status") in ("Interview", "Offer", "Rejected"):
+            role_groups[key]["responded"] += 1
+
+    role_stats = []
+    for key, g in sorted(role_groups.items(), key=lambda x: x[1]["total"], reverse=True):
+        rate = round(g["responded"] / g["total"] * 100) if g["total"] else 0
+        role_stats.append({
+            "role": g["role"],
+            "applied": g["total"],
+            "responded": g["responded"],
+            "response_rate": rate
+        })
+
+    dimensions = {}
+    for field, label in (("role_type", "role_type"), ("domain", "domain"), ("channel", "channel")):
+        groups = {}
+        for a in apps:
+            key = str(a.get(field) or "").strip().lower()
+            if not key:
+                continue
+            group = groups.setdefault(key, {"label": str(a.get(field)).strip(), "applied": 0, "responded": 0})
+            group["applied"] += 1
+            if a.get("status") in ("Interview", "Offer", "Rejected"):
+                group["responded"] += 1
+        dimensions[label] = [
+            {"label": g["label"], "applied": g["applied"], "responded": g["responded"],
+             "response_rate": round(g["responded"] / g["applied"] * 100)}
+            for g in sorted(groups.values(), key=lambda x: x["applied"], reverse=True)
+        ]
+
+    # Generate insights
+    insights = []
+    responded = status_counts.get("Interview", 0) + status_counts.get("Offer", 0)
+    overall_rate = round(responded / total * 100) if total else 0
+    insights.append(f"Overall response rate: {overall_rate}% ({responded} of {total} applications)")
+
+    if role_stats:
+        best = max(role_stats, key=lambda x: x["response_rate"])
+        if best["applied"] >= 2:
+            insights.append(f"Best performing role type: '{best['role']}' with {best['response_rate']}% response rate")
+        worst = min((r for r in role_stats if r["applied"] >= 2), key=lambda x: x["response_rate"], default=None)
+        if worst and worst["role"] != best["role"]:
+            insights.append(f"Lowest response role type: '{worst['role']}' with {worst['response_rate']}% response rate")
+
+    offers = status_counts.get("Offer", 0)
+    if offers:
+        insights.append(f"You have received {offers} offer{'s' if offers > 1 else ''}. Congratulations!")
+    if total >= 5 and overall_rate < 20:
+        insights.append("Tip: Consider tailoring your resume more closely to each role's job description.")
+
+    return {"total": total, "status_counts": status_counts, "role_stats": role_stats[:20],
+            "role_type_stats": dimensions.get("role_type", []),
+            "domain_stats": dimensions.get("domain", []),
+            "channel_stats": dimensions.get("channel", []),
+            "insights": insights}

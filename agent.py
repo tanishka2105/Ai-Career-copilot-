@@ -4,51 +4,67 @@ import db
 import rag
 from llm import ask_llm
 
-
 TOOLS_HELP = (
     "Tools:\n"
-    '1. get_last_analysis: user ka sabse naya resume analysis (score, gaps). Input: {}\n'
-    '2. search_documents: user ke documents mein search. Input: {"query": "..."}'
+    '1. get_last_analysis: Retrieve the user\'s most recent resume analysis (score, gaps, skill_gap_map). Input: {}\n'
+    '2. search_documents: Search the user\'s uploaded documents. Input: {"query": "..."}'
 )
 
 INSTRUCTIONS = (
-    "Tum ek interview coach ho. Ek baar mein sirf EK sawal pucho. "
-    "Shuru mein get_last_analysis tool se user ki kamiyan dekho aur unke hisaab se sawal pucho. "
-    "User jawab de toh 2-3 line ka feedback do aur agla sawal pucho.\n\n"
-    "Har baar sirf ek JSON do:\n"
-    '1) Tool chahiye toh: {"tool": "tool_ka_naam", "args": {}}\n'
-    '2) Final jawab ke liye: {"final": "user ko dikhane wala text"}\n\n' + TOOLS_HELP
+    "You are a professional interview coach. Ask ONE question at a time. "
+    "Start by using get_last_analysis to review the user's weaknesses and tailor questions accordingly. "
+    "When the user answers, give 2-3 lines of constructive feedback, score the answer out of 10 for "
+    "relevance, specificity, structure, and clarity, then ask the next question.\n\n"
+    "Always respond with exactly one JSON object:\n"
+    '1) If you need a tool: {"tool": "tool_name", "args": {}}\n'
+    '2) For your final response: {"final": "text to show the user"}\n\n' + TOOLS_HELP
 )
 
 
 def run_tool(name, args, user_id):
     if name == "get_last_analysis":
         rows = db.get_history(user_id, 1)
-        return rows[0]["result"] if rows else "Abhi koi analysis nahi hai"
+        return rows[0]["result"] if rows else "No analysis available yet."
     if name == "search_documents":
         found = rag.top_chunks(args.get("query", ""), db.get_chunks(user_id))
-        return "\n---\n".join(found) or "Kuch nahi mila"
+        return "\n---\n".join(found) or "No matching content found."
     return "Unknown tool"
 
 
 def parse(text):
-    start, end = text.find("{"), text.rfind("}")
+    text = text.strip()
+    # Try to find JSON object in the response
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return {"final": text}
+    candidate = text[start:end + 1]
     try:
-        data = json.loads(text[start:end + 1])
-    except ValueError:
-        return {"final": text.strip()}
-    return data if isinstance(data, dict) else {"final": str(data)}
+        data = json.loads(candidate)
+    except (ValueError, json.JSONDecodeError):
+        # If JSON parse fails, return the raw text as the final answer
+        return {"final": text}
+    if isinstance(data, dict) and ("final" in data or "tool" in data):
+        return data
+    # If the JSON doesn't have expected keys, wrap the text
+    return {"final": text}
 
 
 def coach(messages, user_id):
     chat = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in messages)
-    notes = ""                                   # tool ke results yahan jama honge
-    for _ in range(5):                           # zyada se zyada 5 round
-        reply = parse(ask_llm(INSTRUCTIONS + "\n\nBAATCHEET:\n" + chat + notes))
+    notes = ""
+    for _ in range(5):
+        raw = ask_llm(INSTRUCTIONS + "\n\nCONVERSATION:\n" + chat + notes)
+        reply = parse(raw)
         if "tool" in reply:
+            tool_name = reply["tool"]
             args = reply.get("args")
-            result = run_tool(reply["tool"], args if isinstance(args, dict) else {}, user_id)
-            notes += f"\n\nTOOL RESULT ({reply['tool']}): {result}"
+            try:
+                result = run_tool(tool_name, args if isinstance(args, dict) else {}, user_id)
+            except Exception:
+                result = "Tool error, skipping."
+            notes += f"\n\nTOOL RESULT ({tool_name}): {result}"
         else:
-            return str(reply.get("final", "")).strip() or "Dobara try karo"
-    return "Coach atak gaya, dobara try karo"
+            answer = str(reply.get("final", "")).strip()
+            return answer if answer else "I couldn't generate a response. Please try again."
+    return "The coach encountered an issue. Please try again."

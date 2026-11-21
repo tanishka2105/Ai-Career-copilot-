@@ -15,15 +15,24 @@ sys.modules["llm"] = _llm
 
 import pytest                                     # noqa: E402
 from fastapi.testclient import TestClient         # noqa: E402
+from sqlalchemy import delete                    # noqa: E402
 
 import features                                   # noqa: E402
 import main                                       # noqa: E402
+import db                                        # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def reset_limits():
     main._hits.clear()
     features._hits.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_database():
+    with db.engine.begin() as c:
+        for table in reversed(db.meta.sorted_tables):
+            c.execute(delete(table))
 
 
 @pytest.fixture()
